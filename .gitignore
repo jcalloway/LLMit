@@ -1,0 +1,22 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+app/build/
+
+# Release signing (never commit these)
+/.signing/
+*.keystore
+*.jks
+
+# Working files
+llmit-icon-*.jpg
+ic_launcher_preview.png
+docs/screenshot-homescreen.png
+docs/screenshot-home2.png
+.claude/

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ClaudeUsage" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.ClaudeUsage.Widget" parent="" />
+
+    <!--
+      LoginActivity is a raw WebView-backed Activity, not Compose, so it has no built-in
+      inset-aware layout. Android 15+ (targetSdk 36) forces edge-to-edge regardless of app
+      opt-in, which otherwise draws the WebView underneath the status bar. This attribute
+      (API 35+; no-op below it) restores the pre-15 behavior of the system reserving space
+      for the status bar, which is simpler and more reliable here than manually padding a
+      WebView for insets (WebView doesn't consistently respect view padding).
+    -->
+    <style name="Theme.ClaudeUsage.Login" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+</resources>

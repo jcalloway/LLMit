@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="accent">#FFE8896B</color>
+    <color name="widget_bg">#FF000000</color>
+    <color name="bar_track">#33FFFFFF</color>
+    <color name="stale">#FFFFC233</color>
+    <color name="meter_good">#FF6ABF8C</color>
+    <color name="meter_warn">#FFFFC233</color>
+    <color name="meter_danger">#FFE8756B</color>
+
+    <!-- Warm (default): #1A2A38 -->
+    <color name="widget_bg_00">#001A2A38</color>
+    <color name="widget_bg_10">#191A2A38</color>
+    <color name="widget_bg_20">#331A2A38</color>
+    <color name="widget_bg_30">#4C1A2A38</color>
+    <color name="widget_bg_40">#661A2A38</color>
+    <color name="widget_bg_50">#7F1A2A38</color>
+    <color name="widget_bg_60">#991A2A38</color>
+    <color name="widget_bg_70">#B21A2A38</color>
+    <color name="widget_bg_80">#CC1A2A38</color>
+    <color name="widget_bg_90">#E51A2A38</color>
+    <color name="widget_bg_100">#FF1A2A38</color>
+
+    <!-- Pure: #000000 -->
+    <color name="widget_bg_pure_00">#00000000</color>
+    <color name="widget_bg_pure_10">#19000000</color>
+    <color name="widget_bg_pure_20">#33000000</color>
+    <color name="widget_bg_pure_30">#4C000000</color>
+    <color name="widget_bg_pure_40">#66000000</color>
+    <color name="widget_bg_pure_50">#7F000000</color>
+    <color name="widget_bg_pure_60">#99000000</color>
+    <color name="widget_bg_pure_70">#B2000000</color>
+    <color name="widget_bg_pure_80">#CC000000</color>
+    <color name="widget_bg_pure_90">#E5000000</color>
+    <color name="widget_bg_pure_100">#FF000000</color>
+
+    <!-- Claude: #6B3410 -->
+    <color name="widget_bg_claude_00">#006B3410</color>
+    <color name="widget_bg_claude_10">#196B3410</color>
+    <color name="widget_bg_claude_20">#336B3410</color>
+    <color name="widget_bg_claude_30">#4C6B3410</color>
+    <color name="widget_bg_claude_40">#666B3410</color>
+    <color name="widget_bg_claude_50">#7F6B3410</color>
+    <color name="widget_bg_claude_60">#996B3410</color>
+    <color name="widget_bg_claude_70">#B26B3410</color>
+    <color name="widget_bg_claude_80">#CC6B3410</color>
+    <color name="widget_bg_claude_90">#E56B3410</color>
+    <color name="widget_bg_claude_100">#FF6B3410</color>
+
+    <!-- Codex: #1A3D2E -->
+    <color name="widget_bg_codex_00">#001A3D2E</color>
+    <color name="widget_bg_codex_10">#191A3D2E</color>
+    <color name="widget_bg_codex_20">#331A3D2E</color>
+    <color name="widget_bg_codex_30">#4C1A3D2E</color>
+    <color name="widget_bg_codex_40">#661A3D2E</color>
+    <color name="widget_bg_codex_50">#7F1A3D2E</color>
+    <color name="widget_bg_codex_60">#991A3D2E</color>
+    <color name="widget_bg_codex_70">#B21A3D2E</color>
+    <color name="widget_bg_codex_80">#CC1A3D2E</color>
+    <color name="widget_bg_codex_90">#E51A3D2E</color>
+    <color name="widget_bg_codex_100">#FF1A3D2E</color>
+
+    <!-- Cursor: #3D2880 -->
+    <color name="widget_bg_cursor_00">#003D2880</color>
+    <color name="widget_bg_cursor_10">#193D2880</color>
+    <color name="widget_bg_cursor_20">#333D2880</color>
+    <color name="widget_bg_cursor_30">#4C3D2880</color>
+    <color name="widget_bg_cursor_40">#663D2880</color>
+    <color name="widget_bg_cursor_50">#7F3D2880</color>
+    <color name="widget_bg_cursor_60">#993D2880</color>
+    <color name="widget_bg_cursor_70">#B23D2880</color>
+    <color name="widget_bg_cursor_80">#CC3D2880</color>
+    <color name="widget_bg_cursor_90">#E53D2880</color>
+    <color name="widget_bg_cursor_100">#FF3D2880</color>
+</resources>
