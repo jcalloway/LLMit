@@ -104,36 +104,6 @@ object UsageNotifier {
         }
     }
 
-    fun maybeNotify(context: Context, storage: Storage, snapshot: UsageSnapshot) {
-        if (storage.nearLimitAlertsEnabled) {
-            checkWindow(context, storage, "5h", ID_5H, R.string.notify_claude_5h_title, snapshot.fiveHour)
-            checkWindow(context, storage, "7d", ID_7D, R.string.notify_claude_7d_title, snapshot.sevenDay)
-            snapshot.fableWeekly?.let {
-                checkWindow(context, storage, "fable", ID_FABLE, R.string.notify_claude_fable_title, it)
-            }
-        }
-
-        checkReset(context, storage, "5h", storage.reset5hMode, ID_RESET_5H, R.string.reset_claude_5h_title, snapshot.fiveHour)
-        checkReset(context, storage, "7d", storage.resetWeeklyMode, ID_RESET_7D, R.string.reset_claude_7d_title, snapshot.sevenDay)
-        snapshot.fableWeekly?.let {
-            checkReset(context, storage, "fable", storage.resetWeeklyMode, ID_RESET_FABLE, R.string.reset_claude_fable_title, it)
-        }
-
-        if (storage.unexpectedResetsEnabled) {
-            checkUnexpectedReset(context, storage, "7d", ID_UNEXPECTED_7D, "Weekly", snapshot.sevenDay)
-            snapshot.fableWeekly?.let {
-                checkUnexpectedReset(context, storage, "fable", ID_UNEXPECTED_FABLE, "Weekly · Fable", it)
-            }
-        }
-
-        if (storage.weeklyWarningsEnabled) {
-            checkWeeklyDepletion(context, storage, "7d", ID_WEEKLY_WARN_7D, "Weekly", snapshot.sevenDay)
-            snapshot.fableWeekly?.let {
-                checkWeeklyDepletion(context, storage, "fable", ID_WEEKLY_WARN_FABLE, "Weekly · Fable", it)
-            }
-        }
-    }
-
     private fun checkReset(
         context: Context,
         storage: Storage,

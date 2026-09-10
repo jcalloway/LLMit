@@ -17,7 +17,7 @@ class Storage private constructor(
     // ---- credentials (encrypted) ----
     var sessionKey: String?
         get() = secure.getString("sessionKey", null)
-        set(v) = secure.edit().putString("sessionKey", v).apply()
+        set(v) { secure.edit().putString("sessionKey", v).commit() }
 
     var cfClearance: String?
         get() = secure.getString("cf_clearance", null)
@@ -49,7 +49,7 @@ class Storage private constructor(
     // ---- OpenAI credentials ----
     var openaiAccessToken: String?
         get() = secure.getString("openai_access_token", null)
-        set(v) = secure.edit().putString("openai_access_token", v).apply()
+        set(v) { secure.edit().putString("openai_access_token", v).commit() }
 
     var openaiRefreshToken: String?
         get() = secure.getString("openai_refresh_token", null)
@@ -72,7 +72,7 @@ class Storage private constructor(
     // ---- Cursor credentials ----
     var cursorAccessToken: String?
         get() = secure.getString("cursor_access_token", null)
-        set(v) = secure.edit().putString("cursor_access_token", v).apply()
+        set(v) { secure.edit().putString("cursor_access_token", v).commit() }
 
     var cursorRefreshToken: String?
         get() = secure.getString("cursor_refresh_token", null)
@@ -138,7 +138,7 @@ class Storage private constructor(
 
     /** User-controlled widget background opacity, 0 (fully transparent) to 100 (opaque). */
     var widgetBgOpacityPercent: Int
-        get() = snapshot.getInt("widget_bg_opacity", 8)
+        get() = snapshot.getInt("widget_bg_opacity", 80)
         set(v) = snapshot.edit().putInt("widget_bg_opacity", v.coerceIn(0, 100)).apply()
 
     /** Global default bg color key: pure, warm, claude, codex, cursor. */
@@ -174,6 +174,12 @@ class Storage private constructor(
 
     fun setWidgetOpacityPercent(appWidgetId: Int, pct: Int) =
         snapshot.edit().putInt("widget_opacity_$appWidgetId", pct.coerceIn(0, 100)).apply()
+
+    fun widgetShowFable(appWidgetId: Int): Boolean =
+        snapshot.getBoolean("widget_fable_$appWidgetId", showFableWeekly)
+
+    fun setWidgetShowFable(appWidgetId: Int, v: Boolean) =
+        snapshot.edit().putBoolean("widget_fable_$appWidgetId", v).apply()
 
     /** false = "resets in Xh Ym" countdown (default); true = absolute clock time / date. */
     var showAbsoluteResetTime: Boolean

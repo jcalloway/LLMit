@@ -27,7 +27,6 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.goosexgoose.llmit.R
-import com.goosexgoose.llmit.data.WidgetWindowMode
 
 data class CombinedServiceState(
     val serviceId: String,
@@ -75,6 +74,16 @@ fun CombinedWidgetContent(state: CombinedWidgetState) {
             Text("No services", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant))
         } else {
             Column(modifier = GlanceModifier.fillMaxWidth()) {
+                if (state.windowLabel.isNotEmpty()) {
+                    Text(
+                        state.windowLabel,
+                        style = TextStyle(
+                            color = GlanceTheme.colors.onSurfaceVariant,
+                            fontSize = (11 * scale).coerceAtLeast(11f).sp,
+                        ),
+                    )
+                    Spacer(GlanceModifier.height((4 * scale).dp))
+                }
                 state.services.forEachIndexed { i, svc ->
                     if (i > 0) Spacer(GlanceModifier.height(if (compact) (4 * scale).dp else (8 * scale).dp))
                     if (compact) {

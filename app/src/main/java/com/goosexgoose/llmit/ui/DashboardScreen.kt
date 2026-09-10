@@ -216,25 +216,9 @@ fun DashboardScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             val loggedInServices = services.filter { it.loggedIn }
-            val loggedOutServices = services.filter { !it.loggedIn }
-
-            if (loggedInServices.isEmpty()) {
-                Text(
-                    "No services connected. Tap the gear to sign in.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 32.dp),
-                )
-            }
 
             loggedInServices.forEach { svc ->
                 ServiceCard(svc, tick, showUsed, modifier = Modifier.weight(1f))
-            }
-
-            if (loggedOutServices.isNotEmpty()) {
-                loggedOutServices.forEach { svc ->
-                    NotConnectedCard(svc, onSettingsClick)
-                }
             }
 
             val latestFetch = services.maxOfOrNull { it.fetchedAt } ?: 0L
@@ -380,37 +364,6 @@ private fun UsageRowContent(row: UsageRow, tick: Long, showUsed: Boolean) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    }
-}
-
-@Composable
-private fun NotConnectedCard(svc: ServiceDashData, onSettingsClick: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        ),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Image(
-                    painter = painterResource(svc.iconRes),
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    svc.label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            TextButton(onClick = onSettingsClick) { Text("Sign in") }
-        }
     }
 }
 

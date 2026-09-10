@@ -102,8 +102,8 @@ class UsageRepository(private val context: Context) {
         }
     }
 
-    private fun parseTierFromCaps(caps: org.json.JSONArray?): String? {
-        if (caps == null) return null
+    private fun parseTierFromCaps(caps: org.json.JSONArray?): String {
+        if (caps == null) return "Free"
         for (i in 0 until caps.length()) {
             val c = caps.optString(i, "")
             if (c.startsWith("claude_max")) return "Max"

@@ -156,7 +156,8 @@ class MainActivity : ComponentActivity() {
             }
             val colors = if (dark) DarkColors else LightColors
             MaterialTheme(colorScheme = colors) {
-                var screen by remember { mutableStateOf("dashboard") }
+                val anyLoggedIn = storage.isLoggedIn || storage.isOpenaiLoggedIn || storage.isCursorLoggedIn
+                var screen by remember { mutableStateOf(if (anyLoggedIn) "dashboard" else "settings") }
                 when (screen) {
                     "dashboard" -> DashboardScreen(
                         onSettingsClick = { screen = "settings" },

@@ -32,26 +32,46 @@ import com.goosexgoose.llmit.R
 @Composable
 fun DashboardWidgetContent(state: WidgetState) {
     val size = LocalSize.current
-    val gaugeSize = (size.height - 8.dp).coerceIn(48.dp, 120.dp)
+    val gaugeSize = (size.height - 36.dp).coerceIn(48.dp, 120.dp)
     val arcPx = (gaugeSize.value * 3f).toInt().coerceIn(120, 600)
     val pct5 = state.fiveHourPct.coerceIn(0, 100)
     val pct7 = state.sevenDayPct.coerceIn(0, 100)
     val disp5 = if (state.showUsed) pct5 else (100 - pct5).coerceIn(0, 100)
     val disp7 = if (state.showUsed) pct7 else (100 - pct7).coerceIn(0, 100)
+    val iconRes = serviceIconRes(state.serviceId)
 
     Box(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(widgetBgFor(state.bgOpacityPercent, state.bgColorKey))
             .cornerRadius(20.dp)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 10.dp, vertical = 6.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
-        Row(
-            modifier = GlanceModifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(modifier = GlanceModifier.fillMaxSize()) {
+            Column(
+                modifier = GlanceModifier.width(gaugeSize + 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (iconRes != null) {
+                        Image(
+                            provider = ImageProvider(iconRes),
+                            contentDescription = null,
+                            modifier = GlanceModifier.size(16.dp),
+                        )
+                        Spacer(GlanceModifier.width(4.dp))
+                    }
+                    Text(
+                        state.serviceLabel,
+                        style = TextStyle(
+                            color = GlanceTheme.colors.onSurface,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                        ),
+                    )
+                }
+                Spacer(GlanceModifier.height(2.dp))
                 Box(
                     modifier = GlanceModifier.size(gaugeSize),
                     contentAlignment = Alignment.Center,
@@ -82,7 +102,7 @@ fun DashboardWidgetContent(state: WidgetState) {
                     }
                 }
                 Text(
-                    "${state.primaryLabel} Session",
+                    state.primaryLabel,
                     style = TextStyle(
                         color = GlanceTheme.colors.onSurfaceVariant,
                         fontWeight = FontWeight.Bold,
@@ -95,43 +115,36 @@ fun DashboardWidgetContent(state: WidgetState) {
 
             Column(
                 modifier = GlanceModifier.defaultWeight(),
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val iconRes = serviceIconRes(state.serviceId)
-                    if (iconRes != null) {
-                        Image(
-                            provider = ImageProvider(iconRes),
-                            contentDescription = null,
-                            modifier = GlanceModifier.size(16.dp),
-                        )
-                        Spacer(GlanceModifier.width(4.dp))
-                    }
+                Row(
+                    modifier = GlanceModifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
-                        state.serviceLabel,
+                        state.secondaryLabel,
                         style = TextStyle(
-                            color = GlanceTheme.colors.onSurface,
+                            color = GlanceTheme.colors.onSurfaceVariant,
+                            fontSize = 12.sp,
+                        ),
+                    )
+                    Spacer(GlanceModifier.width(4.dp))
+                    LinearProgressIndicator(
+                        progress = pct7 / 100f,
+                        modifier = GlanceModifier.defaultWeight().height(6.dp).cornerRadius(3.dp),
+                        color = gaugeColor(pct7),
+                        backgroundColor = ColorProvider(R.color.bar_track),
+                    )
+                    Spacer(GlanceModifier.width(4.dp))
+                    Text(
+                        "$disp7%",
+                        style = TextStyle(
+                            color = gaugeColor(pct7),
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                         ),
                     )
                 }
                 Spacer(GlanceModifier.height(4.dp))
-                Text(
-                    state.secondaryLabel,
-                    style = TextStyle(
-                        color = GlanceTheme.colors.onSurfaceVariant,
-                        fontSize = 12.sp,
-                    ),
-                )
-                Spacer(GlanceModifier.height(2.dp))
-                LinearProgressIndicator(
-                    progress = pct7 / 100f,
-                    modifier = GlanceModifier.fillMaxWidth().height(6.dp).cornerRadius(3.dp),
-                    color = gaugeColor(pct7),
-                    backgroundColor = ColorProvider(R.color.bar_track),
-                )
-                Spacer(GlanceModifier.height(6.dp))
                 Text(
                     "${state.primaryResetPrefix}: ${state.fiveHourResetLabel.removePrefix("Resets in ")}",
                     style = TextStyle(
@@ -148,18 +161,6 @@ fun DashboardWidgetContent(state: WidgetState) {
                     ),
                 )
             }
-
-            Spacer(GlanceModifier.width(8.dp))
-
-            Text(
-                "$disp7%",
-                style = TextStyle(
-                    color = gaugeColor(pct7),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    textAlign = TextAlign.End,
-                ),
-            )
         }
     }
 }

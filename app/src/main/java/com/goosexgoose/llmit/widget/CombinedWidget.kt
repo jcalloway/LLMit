@@ -8,7 +8,6 @@ import androidx.compose.runtime.remember
 import androidx.glance.GlanceId
 import androidx.glance.GlanceTheme
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.GlanceAppWidgetManager
@@ -47,14 +46,17 @@ class CombinedWidget : GlanceAppWidget() {
         val s = Storage.get(context)
         val now = System.currentTimeMillis()
         val windowMode = s.widgetWindowMode(awId)
+        val absolute = s.showAbsoluteResetTime
         val services = mutableListOf<CombinedServiceState>()
 
         if (s.isLoggedIn && s.hasSnapshot) {
             val pct5 = s.fiveHourUtil.coerceAtLeast(0f).roundToInt()
             val pct7 = s.sevenDayUtil.coerceAtLeast(0f).roundToInt()
             val (pct, reset) = pickWindow(windowMode, pct5, s.fiveHourReset, pct7, s.sevenDayReset)
+            val isShort = windowMode == WidgetWindowMode.FIVE_HOUR ||
+                (windowMode == WidgetWindowMode.WORST && pct5 >= pct7)
             services.add(CombinedServiceState("claude", "Claude", pct,
-                TimeFmt.resetsIn(reset, now)))
+                formatReset(context, reset, now, absolute, isShort)))
         }
 
         if (s.isOpenaiLoggedIn) {
@@ -63,8 +65,10 @@ class CombinedWidget : GlanceAppWidget() {
                 val pct5 = snap.fiveHourUtil.coerceAtLeast(0f).roundToInt()
                 val pct7 = snap.sevenDayUtil.coerceAtLeast(0f).roundToInt()
                 val (pct, reset) = pickWindow(windowMode, pct5, snap.fiveHourReset, pct7, snap.sevenDayReset)
+                val isShort = windowMode == WidgetWindowMode.FIVE_HOUR ||
+                    (windowMode == WidgetWindowMode.WORST && pct5 >= pct7)
                 services.add(CombinedServiceState("openai", "Codex", pct,
-                    TimeFmt.resetsIn(reset, now)))
+                    formatReset(context, reset, now, absolute, isShort)))
             }
         }
 
@@ -74,8 +78,10 @@ class CombinedWidget : GlanceAppWidget() {
                 val pct5 = snap.fiveHourUtil.coerceAtLeast(0f).roundToInt()
                 val pct7 = snap.sevenDayUtil.coerceAtLeast(0f).roundToInt()
                 val (pct, reset) = pickWindow(windowMode, pct5, snap.fiveHourReset, pct7, snap.sevenDayReset)
+                val isShort = windowMode == WidgetWindowMode.FIVE_HOUR ||
+                    (windowMode == WidgetWindowMode.WORST && pct5 >= pct7)
                 services.add(CombinedServiceState("cursor", "Cursor", pct,
-                    if (reset > 0L) TimeFmt.resetsIn(reset, now) else "-",
+                    formatReset(context, reset, now, absolute, isShort),
                     primaryLabel = "Auto", secondaryLabel = "API"))
             }
         }
@@ -106,3 +112,9 @@ internal fun pickWindow(
     WidgetWindowMode.WORST -> if (pct5 >= pct7) pct5 to reset5 else pct7 to reset7
 }
 
+internal fun formatReset(context: Context, reset: Long, now: Long, absolute: Boolean, isShortWindow: Boolean): String {
+    if (reset <= 0L) return "-"
+    if (!absolute) return TimeFmt.resetsIn(reset, now)
+    return if (isShortWindow) TimeFmt.clockTime(context, reset)
+    else TimeFmt.dateAndTime(context, reset)
+}

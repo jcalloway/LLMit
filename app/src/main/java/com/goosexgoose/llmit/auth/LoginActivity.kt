@@ -2,8 +2,12 @@ package com.goosexgoose.llmit.auth
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.Message
+import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
@@ -32,6 +36,13 @@ class LoginActivity : Activity() {
     private var popupWebView: WebView? = null
     private val storage by lazy { Storage.get(this) }
     private var captured = false
+    private val cookiePoller = Handler(Looper.getMainLooper())
+    private val pollCookie = object : Runnable {
+        override fun run() {
+            tryCapture()
+            if (!captured) cookiePoller.postDelayed(this, 500)
+        }
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,6 +55,9 @@ class LoginActivity : Activity() {
             cm.setAcceptThirdPartyCookies(this, true)
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
+            }
             // Google's account-chooser / consent screen opens as a JS popup (window.open);
             // without multi-window support the popup is silently dropped and the page
             // underneath is left blank.
@@ -111,8 +125,9 @@ class LoginActivity : Activity() {
                     return true
                 }
             }
-            loadUrl(Const.LOGIN_URL)
         }
+        webView.loadUrl(Const.LOGIN_URL)
+        cookiePoller.postDelayed(pollCookie, 2000)
         // Android 15+ forces edge-to-edge for apps targeting SDK 35+; targeting SDK 36 (this
         // app) additionally drops the windowOptOutEdgeToEdgeEnforcement theme escape hatch, so
         // there's no way to just opt back into the old "system reserves the status bar" layout.
@@ -154,6 +169,7 @@ class LoginActivity : Activity() {
     }
 
     override fun onDestroy() {
+        cookiePoller.removeCallbacks(pollCookie)
         popupWebView?.destroy()
         popupWebView = null
         if (::webView.isInitialized) webView.destroy()

@@ -83,8 +83,7 @@ class RefreshAction : ActionCallback {
     }
 
     private companion object {
-        // Just a double-tap debounce now that the fetch is inline (~0.3s), not a guard against
-        // WorkManager's REPLACE-cancellation (that path is no longer used for taps).
-        const val COOLDOWN_MS = 5_000L
+        // Must exceed CloudflareResolver's 30s timeout to prevent concurrent duplicate refreshes.
+        const val COOLDOWN_MS = 45_000L
     }
 }

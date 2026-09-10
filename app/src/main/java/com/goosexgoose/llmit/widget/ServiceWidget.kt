@@ -83,7 +83,7 @@ class ServiceWidget : GlanceAppWidget() {
         } else {
             context.getString(R.string.resets_in, TimeFmt.resetsIn(snap.sevenDayReset, now))
         }
-        val showFable = serviceId == "claude" && s.showFableWeekly && snap.fableWeeklyUtil >= 0f
+        val showFable = serviceId == "claude" && s.widgetShowFable(awId) && snap.fableWeeklyUtil >= 0f
         val fableLabel = if (!showFable) "" else if (absolute) {
             context.getString(R.string.resets_at, TimeFmt.dateAndTime(context, snap.fableWeeklyReset))
         } else {
@@ -117,7 +117,7 @@ class ServiceWidget : GlanceAppWidget() {
             primaryLabel = if (serviceId == "cursor") "Auto" else "5H",
             secondaryLabel = if (serviceId == "cursor") "API" else "1W",
             primaryResetPrefix = if (serviceId == "cursor") "Billing reset" else "5h reset",
-            secondaryResetPrefix = if (serviceId == "cursor") "Billing reset" else "Weekly",
+            secondaryResetPrefix = if (serviceId == "cursor") "Billing" else "Weekly",
         )
     }
 }

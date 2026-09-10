@@ -42,6 +42,7 @@ import com.goosexgoose.llmit.data.Storage
 import com.goosexgoose.llmit.data.ThemeMode
 import com.goosexgoose.llmit.data.WidgetWindowMode
 import com.goosexgoose.llmit.widget.updateAllWidgets
+import androidx.compose.material3.Switch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -95,11 +96,13 @@ class WidgetConfigActivity : ComponentActivity() {
                         showServicePicker = showServicePicker,
                         currentServiceId = storage.widgetServiceId(appWidgetId),
                         currentOpacity = storage.widgetOpacityPercent(appWidgetId),
-                    ) { key, windowMode, serviceId, opacity ->
+                        currentShowFable = storage.widgetShowFable(appWidgetId),
+                    ) { key, windowMode, serviceId, opacity, showFable ->
                         storage.setWidgetBgColorKey(appWidgetId, key)
                         storage.setWidgetOpacityPercent(appWidgetId, opacity)
                         if (windowMode != null) storage.setWidgetWindowMode(appWidgetId, windowMode)
                         if (serviceId != null) storage.setWidgetServiceId(appWidgetId, serviceId)
+                        if (showFable != null) storage.setWidgetShowFable(appWidgetId, showFable)
                         val resultIntent = Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                         setResult(RESULT_OK, resultIntent)
                         CoroutineScope(Dispatchers.IO).launch { updateAllWidgets(ctx) }
@@ -137,12 +140,14 @@ internal fun WidgetConfigScreen(
     showServicePicker: Boolean,
     currentServiceId: String,
     currentOpacity: Int,
-    onConfirm: (colorKey: String, windowMode: WidgetWindowMode?, serviceId: String?, opacity: Int) -> Unit,
+    currentShowFable: Boolean = false,
+    onConfirm: (colorKey: String, windowMode: WidgetWindowMode?, serviceId: String?, opacity: Int, showFable: Boolean?) -> Unit,
 ) {
     var selectedColor by remember { mutableStateOf(currentKey) }
     var selectedWindow by remember { mutableStateOf(currentWindowMode) }
     var selectedService by remember { mutableStateOf(currentServiceId) }
     var opacity by remember { mutableStateOf(currentOpacity.toFloat()) }
+    var showFable by remember { mutableStateOf(currentShowFable) }
     val snappedOpacity = (opacity / 10f).let { kotlin.math.round(it) * 10 }.toInt()
     Column(
         modifier = Modifier
@@ -195,7 +200,7 @@ internal fun WidgetConfigScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 listOf(
-                    WidgetWindowMode.WORST to "Worst",
+                    WidgetWindowMode.WORST to "Both",
                     WidgetWindowMode.FIVE_HOUR to "5-Hour",
                     WidgetWindowMode.WEEKLY to "Weekly",
                 ).forEach { (mode, label) ->
@@ -208,6 +213,17 @@ internal fun WidgetConfigScreen(
             }
         }
 
+        if (showServicePicker && selectedService == "claude") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text("Show Fable weekly", style = MaterialTheme.typography.titleMedium)
+                Switch(checked = showFable, onCheckedChange = { showFable = it })
+            }
+        }
+
         Button(
             onClick = {
                 onConfirm(
@@ -215,6 +231,7 @@ internal fun WidgetConfigScreen(
                     if (showWindowPicker) selectedWindow else null,
                     if (showServicePicker) selectedService else null,
                     snappedOpacity,
+                    if (showServicePicker && selectedService == "claude") showFable else null,
                 )
             },
             modifier = Modifier.fillMaxWidth(),

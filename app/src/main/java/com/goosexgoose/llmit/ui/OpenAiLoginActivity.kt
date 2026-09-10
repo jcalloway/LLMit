@@ -3,8 +3,10 @@ package com.goosexgoose.llmit.ui
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -40,6 +42,9 @@ class OpenAiLoginActivity : Activity() {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.userAgentString = settings.userAgentString.replace("; wv", "")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
+            }
         }
 
         val frame = FrameLayout(this).also { it.addView(webView) }

@@ -122,7 +122,7 @@ private fun drawConcentricBitmap(
     val outerRadius = (sizePx - outerStroke) / 2f
     val innerRadius = sizePx / 2f - innerInset
 
-    val labelSize = sizePx * 0.11f
+    val labelSize = sizePx * 0.10f
     val innerTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER; textSize = labelSize
         typeface = Typeface.DEFAULT_BOLD; color = innerColor
@@ -148,13 +148,18 @@ fun GaugeWidgetContent(state: CombinedWidgetState) {
     val isConcentric = state.windowLabel.isEmpty()
     val serviceCount = state.services.size.coerceAtLeast(1)
 
+    val pad = 8.dp
+    val cellSpacing = 4.dp
+    val totalSpacing = cellSpacing * (serviceCount - 1).coerceAtLeast(0)
+    val headerHeight = 24.dp
     val labelHeight = if (state.windowLabel.isNotEmpty()) 18.dp else 0.dp
-    val pad = 4.dp
-    val maxByWidth = (size.width - pad * 2) / serviceCount
-    val maxByHeight = size.height - pad * 2 - labelHeight
-    val gaugeSize = minOf(maxByWidth, maxByHeight).coerceIn(48.dp, 300.dp)
+
+    val availW = size.width - pad * 2 - totalSpacing
+    val availH = size.height - pad * 2 - headerHeight - labelHeight
+    val maxByWidth = availW / serviceCount
+    val gaugeSize = minOf(maxByWidth, availH).coerceIn(48.dp, 300.dp)
     val scale = (gaugeSize.value / 80f).coerceIn(0.7f, 2.5f)
-    val concentricSize = minOf(maxByWidth, size.height - pad * 2).coerceIn(80.dp, 300.dp)
+    val concentricSize = minOf(maxByWidth, availH).coerceIn(80.dp, 300.dp)
     val arcSizePx = (gaugeSize.value * 3f).toInt().coerceIn(120, 900)
     val concentricPx = (concentricSize.value * 3f).toInt().coerceIn(160, 900)
 
@@ -180,12 +185,12 @@ fun GaugeWidgetContent(state: CombinedWidgetState) {
             }
         } else if (isConcentric) {
             Row(
-                modifier = GlanceModifier.fillMaxSize(),
+                modifier = GlanceModifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 state.services.forEachIndexed { i, svc ->
-                    if (i > 0) Spacer(GlanceModifier.width(4.dp))
+                    if (i > 0) Spacer(GlanceModifier.width(cellSpacing))
                     Box(
                         modifier = GlanceModifier.defaultWeight(),
                         contentAlignment = Alignment.Center,
@@ -201,7 +206,7 @@ fun GaugeWidgetContent(state: CombinedWidgetState) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 state.services.forEachIndexed { i, svc ->
-                    if (i > 0) Spacer(GlanceModifier.width(4.dp))
+                    if (i > 0) Spacer(GlanceModifier.width(cellSpacing))
                     Box(
                         modifier = GlanceModifier.defaultWeight(),
                         contentAlignment = Alignment.Center,
@@ -221,7 +226,7 @@ private fun ConcentricGaugeCell(svc: CombinedServiceState, showUsed: Boolean, ce
     val disp5 = if (showUsed) pct5 else (100 - pct5).coerceIn(0, 100)
     val disp7 = if (showUsed) pct7 else (100 - pct7).coerceIn(0, 100)
     val iconRes = serviceIconRes(svc.serviceId)
-    val logoSize = (cellSize.value * 0.30f).coerceAtLeast(18f).dp
+    val logoSize = (cellSize.value * 0.25f).coerceAtLeast(16f).dp
 
     Box(
         modifier = GlanceModifier.size(cellSize),
@@ -248,8 +253,8 @@ private fun CircularGaugeCell(svc: CombinedServiceState, showUsed: Boolean, wind
     val pct = svc.worstPct.coerceIn(0, 100)
     val displayPct = if (showUsed) pct else (100 - pct).coerceIn(0, 100)
     val iconRes = serviceIconRes(svc.serviceId)
-    val logoSize = (gaugeSize.value * 0.30f).coerceAtLeast(16f).dp
-    val fontSize = (gaugeSize.value * 0.18f).coerceAtLeast(10f).sp
+    val logoSize = (gaugeSize.value * 0.28f).coerceAtLeast(16f).dp
+    val fontSize = (gaugeSize.value * 0.20f).coerceAtLeast(11f).sp
     val labelFontSize = (gaugeSize.value * 0.14f).coerceAtLeast(11f).sp
 
     Column(
