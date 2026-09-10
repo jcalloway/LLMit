@@ -34,18 +34,18 @@
     <color name="widget_bg_pure_90">#E5000000</color>
     <color name="widget_bg_pure_100">#FF000000</color>
 
-    <!-- Claude: #6B3410 -->
-    <color name="widget_bg_claude_00">#006B3410</color>
-    <color name="widget_bg_claude_10">#196B3410</color>
-    <color name="widget_bg_claude_20">#336B3410</color>
-    <color name="widget_bg_claude_30">#4C6B3410</color>
-    <color name="widget_bg_claude_40">#666B3410</color>
-    <color name="widget_bg_claude_50">#7F6B3410</color>
-    <color name="widget_bg_claude_60">#996B3410</color>
-    <color name="widget_bg_claude_70">#B26B3410</color>
-    <color name="widget_bg_claude_80">#CC6B3410</color>
-    <color name="widget_bg_claude_90">#E56B3410</color>
-    <color name="widget_bg_claude_100">#FF6B3410</color>
+    <!-- Claude: #8B3A15 -->
+    <color name="widget_bg_claude_00">#008B3A15</color>
+    <color name="widget_bg_claude_10">#198B3A15</color>
+    <color name="widget_bg_claude_20">#338B3A15</color>
+    <color name="widget_bg_claude_30">#4C8B3A15</color>
+    <color name="widget_bg_claude_40">#668B3A15</color>
+    <color name="widget_bg_claude_50">#7F8B3A15</color>
+    <color name="widget_bg_claude_60">#998B3A15</color>
+    <color name="widget_bg_claude_70">#B28B3A15</color>
+    <color name="widget_bg_claude_80">#CC8B3A15</color>
+    <color name="widget_bg_claude_90">#E58B3A15</color>
+    <color name="widget_bg_claude_100">#FF8B3A15</color>
 
     <!-- Codex: #1A3D2E -->
     <color name="widget_bg_codex_00">#001A3D2E</color>

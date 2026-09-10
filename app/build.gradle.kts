@@ -26,11 +26,11 @@ val keystoreProps = Properties().apply {
 val hasReleaseSigning = keystoreProps.isNotEmpty()
 
 android {
-    namespace = "com.usage.claudewidget"
+    namespace = "com.goosexgoose.llmit"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.usage.claudewidget"
+        applicationId = "com.goosexgoose.llmit"
         minSdk = 26
         targetSdk = 36
         versionCode = autoVersionCode

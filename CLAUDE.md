@@ -1,4 +1,4 @@
-# Claude Usage Widget
+# LLMit
 
 Native Android home-screen widget showing Claude subscription usage (5H / 1W / optional Fable
 weekly). Kotlin + Jetpack Glance + WorkManager + OkHttp. **Plain Gradle, not Expo/RN.**

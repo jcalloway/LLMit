@@ -14,12 +14,12 @@
 #
 #   storeFile=.signing/release.keystore
 #   storePassword=...
-#   keyAlias=claude-usage-widget
+#   keyAlias=llmit
 #   keyPassword=...
 
 set -euo pipefail
 
-ASSET_NAME="claude-usage-widget.apk"
+ASSET_NAME="llmit.apk"
 GRADLE_FILE="app/build.gradle.kts"
 APK_OUT="app/build/outputs/apk/release/app-release.apk"
 
@@ -69,4 +69,4 @@ gh release create "$TAG" "$ASSET_NAME" \
     --generate-notes
 rm -f "$ASSET_NAME"
 
-echo "==> Done. https://github.com/utaysi/claude-usage-widget/releases/tag/${TAG}"
+echo "==> Done. Release ${TAG} published."

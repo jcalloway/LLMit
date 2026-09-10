@@ -14,5 +14,5 @@
     android:description="@string/gauge_widget_description"
     android:initialLayout="@layout/widget_loading"
     android:previewImage="@drawable/preview_gauge"
-    android:configure="com.usage.claudewidget.ui.WidgetConfigActivity"
+    android:configure="com.goosexgoose.llmit.ui.WidgetConfigActivity"
     android:widgetFeatures="reconfigurable|configuration_optional" />

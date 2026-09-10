@@ -10,3 +10,9 @@
 
 # OkHttp: keep platform adapters
 -keepnames class okhttp3.internal.publicsuffix.PublicSuffixDatabase
+
+# Tink (via security-crypto) references errorprone annotations at compile time only
+-dontwarn com.google.errorprone.annotations.CanIgnoreReturnValue
+-dontwarn com.google.errorprone.annotations.CheckReturnValue
+-dontwarn com.google.errorprone.annotations.Immutable
+-dontwarn com.google.errorprone.annotations.RestrictedApi

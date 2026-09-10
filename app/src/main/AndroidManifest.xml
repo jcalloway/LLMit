@@ -49,36 +49,15 @@
             android:theme="@style/Theme.ClaudeUsage" />
 
         <receiver
-            android:name=".widget.ClaudeWidgetReceiver"
+            android:name=".widget.ServiceWidgetReceiver"
+            android:label="@string/meter_label"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/claude_widget_info" />
-        </receiver>
-
-        <receiver
-            android:name=".widget.OpenAiWidgetReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/openai_widget_info" />
-        </receiver>
-
-        <receiver
-            android:name=".widget.CursorWidgetReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/cursor_widget_info" />
+                android:resource="@xml/service_widget_info" />
         </receiver>
 
         <receiver

@@ -28,4 +28,3 @@ CUSTOMIZABLE
 • Multiple widget sizes and layouts
 • Per-service accent colors
 
-Free and open source.
