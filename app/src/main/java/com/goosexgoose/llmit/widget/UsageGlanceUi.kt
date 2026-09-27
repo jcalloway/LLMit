@@ -157,7 +157,7 @@ fun UsageWidgetContent(state: WidgetState) {
 @Composable
 private fun FullLayout(s: WidgetState) {
     val size = widgetSize()
-    val scale = (size.height.value / 140f).coerceIn(0.8f, 2.5f)
+    val scale = (size.height.value / (if (s.showFableWeekly) 165f else 140f)).coerceIn(0.8f, 2.5f)
     val iconSize = (16 * scale).coerceIn(12f, 40f).dp
     val barHeight = (6 * scale).coerceIn(4f, 15f).dp
     val fontSize = (14 * scale).coerceIn(11f, 35f).sp
@@ -367,7 +367,9 @@ internal fun widgetSize(): androidx.compose.ui.unit.DpSize {
         else android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)
     val h = opts.getInt(if (portrait) android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT
         else android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
-    return if (w > 0 && h > 0) androidx.compose.ui.unit.DpSize(w.dp, h.dp) else fallback
+    // ponytail: portrait MAX_HEIGHT measured ~14% over the real height on the user's launcher; undershoot pads, overshoot clips
+    val hFactor = if (portrait) 0.87f else 1f
+    return if (w > 0 && h > 0) androidx.compose.ui.unit.DpSize(w.dp, (h * hFactor).dp) else fallback
 }
 
 @Composable

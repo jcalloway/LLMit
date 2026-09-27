@@ -89,8 +89,8 @@ class DashboardWidget : GlanceAppWidget() {
             showUsed = s.showUsed,
             primaryLabel = if (serviceId == "cursor") "Auto" else "5H",
             secondaryLabel = if (serviceId == "cursor") "API" else "1W",
-            primaryResetPrefix = if (serviceId == "cursor") "Billing reset" else "5h reset",
-            secondaryResetPrefix = if (serviceId == "cursor") "Billing" else "Weekly",
+            primaryResetPrefix = if (serviceId == "cursor") "Billing reset" else "5H reset",
+            secondaryResetPrefix = if (serviceId == "cursor") "Billing" else "1W",
         )
     }
 }

@@ -31,7 +31,8 @@ object TimeFmt {
     fun dateAndTime(context: Context, resetEpochMs: Long): String {
         if (resetEpochMs <= 0L) return "-"
         val d = Date(resetEpochMs)
-        return "${DateFormat.getMediumDateFormat(context).format(d)}, ${DateFormat.getTimeFormat(context).format(d)}"
+        val pattern = DateFormat.getBestDateTimePattern(java.util.Locale.getDefault(), "MMMd")
+        return "${DateFormat.format(pattern, d)}, ${DateFormat.getTimeFormat(context).format(d)}"
     }
 
     /** Snapshot is considered stale once older than ~2 refresh cycles. */

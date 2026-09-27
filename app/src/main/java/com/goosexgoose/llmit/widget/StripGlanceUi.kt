@@ -44,6 +44,9 @@ fun StripWidgetContent(state: WidgetState) {
         actionRunCallback<RefreshAction>()
     }
     val gap = (12 * scale).coerceIn(8f, 24f).dp
+    val cols = if (state.showFableWeekly) 3 else 2
+    val colW = (size.width.value - 2 * (12 * scale).coerceIn(10f, 20f) - (cols - 1) * gap.value) / cols
+    val cellScale = minOf(scale, colW / 90f).coerceAtLeast(0.8f)
 
     Box(
         modifier = GlanceModifier
@@ -83,12 +86,12 @@ fun StripWidgetContent(state: WidgetState) {
                 }
                 Spacer(GlanceModifier.height((6 * scale).coerceIn(4f, 12f).dp))
                 Row(modifier = GlanceModifier.fillMaxWidth()) {
-                    StripCell(GlanceModifier.defaultWeight(), state.primaryLabel, state.fiveHourPct, state.fiveHourResetLabel, state.showUsed, scale)
+                    StripCell(GlanceModifier.defaultWeight(), state.primaryLabel, state.fiveHourPct, state.fiveHourResetLabel, state.showUsed, cellScale)
                     Spacer(GlanceModifier.width(gap))
-                    StripCell(GlanceModifier.defaultWeight(), state.secondaryLabel, state.sevenDayPct, state.sevenDayResetLabel, state.showUsed, scale)
+                    StripCell(GlanceModifier.defaultWeight(), state.secondaryLabel, state.sevenDayPct, state.sevenDayResetLabel, state.showUsed, cellScale)
                     if (state.showFableWeekly) {
                         Spacer(GlanceModifier.width(gap))
-                        StripCell(GlanceModifier.defaultWeight(), "Fable", state.fableWeeklyPct, state.fableWeeklyResetLabel, state.showUsed, scale)
+                        StripCell(GlanceModifier.defaultWeight(), "Fable", state.fableWeeklyPct, state.fableWeeklyResetLabel, state.showUsed, cellScale)
                     }
                 }
             }
