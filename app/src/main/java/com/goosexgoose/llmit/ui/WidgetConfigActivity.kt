@@ -80,6 +80,7 @@ class WidgetConfigActivity : ComponentActivity() {
                 || providerClass.endsWith("GaugeWidgetReceiver")
         val showServicePicker = providerClass.endsWith("DashboardWidgetReceiver")
                 || providerClass.endsWith("ServiceWidgetReceiver")
+                || providerClass.endsWith("StripWidgetReceiver")
 
         setContent {
             val dark = when (storage.themeMode) {

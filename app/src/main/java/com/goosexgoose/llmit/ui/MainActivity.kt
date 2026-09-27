@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -33,7 +34,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.AutoStories
-import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -68,7 +68,6 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -90,20 +89,17 @@ import androidx.lifecycle.LifecycleOwner
 import com.goosexgoose.llmit.R
 import com.goosexgoose.llmit.auth.LoginActivity
 import com.goosexgoose.llmit.data.CursorProvider
-import com.goosexgoose.llmit.data.FetchResult
 import com.goosexgoose.llmit.data.OpenAiProvider
 import com.goosexgoose.llmit.data.ProviderRegistry
 import com.goosexgoose.llmit.data.ResetNotify
 import com.goosexgoose.llmit.data.Storage
 import com.goosexgoose.llmit.data.ThemeMode
-import com.goosexgoose.llmit.data.UsageRepository
 import com.goosexgoose.llmit.widget.updateAllWidgets
 import com.goosexgoose.llmit.work.RefreshScheduler
 import com.goosexgoose.llmit.work.UsageNotifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -113,7 +109,9 @@ private fun pushWidgetUpdate(context: Context) {
     widgetUpdateScope.launch { updateAllWidgets(context.applicationContext) }
 }
 
-private const val BUILD_TAG = "llmit-3"
+private fun versionTag(context: Context): String = try {
+    "v${context.packageManager.getPackageInfo(context.packageName, 0).versionName}"
+} catch (_: Exception) { "LLMit" }
 
 private val ClaudeBrand = Color(0xFFD97757)
 private val CodexBrand = Color(0xFF10A37F)
@@ -181,8 +179,6 @@ private fun SettingsScreen(onBack: () -> Unit, onThemeChanged: (ThemeMode) -> Un
     val scope = rememberCoroutineScope()
 
     var refreshKey by remember { mutableStateOf(0) }
-    var showDiagnostics by remember { mutableStateOf(false) }
-
     val loginLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { refreshKey++ }
@@ -727,30 +723,16 @@ private fun SettingsScreen(onBack: () -> Unit, onThemeChanged: (ThemeMode) -> Un
             }
 
             // -- Footer --
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    BUILD_TAG,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                TextButton(onClick = { showDiagnostics = true }) {
-                    Icon(Icons.Filled.BugReport, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Text("Diagnostics", modifier = Modifier.padding(start = 4.dp))
-                }
-            }
+            Text(
+                versionTag(context),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    .wrapContentWidth(Alignment.CenterHorizontally),
+            )
         }
     }
 
-    if (showDiagnostics) {
-        DiagnosticsDialog(
-            storage = storage,
-            onDismiss = { showDiagnostics = false },
-        )
-    }
 }
 
 private fun ResetNotify.shortLabel(): String = when (this) {
@@ -896,67 +878,6 @@ private fun SectionLabel(text: String) {
     )
 }
 
-@Composable
-private fun DiagnosticsDialog(
-    storage: Storage,
-    onDismiss: () -> Unit,
-) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var debug by remember { mutableStateOf("") }
-
-    var tapDiag by remember { mutableStateOf(describeTap(storage)) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            tapDiag = describeTap(storage)
-            delay(1000)
-        }
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-        title = { Text("Diagnostics") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(
-                    onClick = {
-                        scope.launch {
-                            debug = "Fetching..."
-                            val t0 = System.currentTimeMillis()
-                            val r = UsageRepository(context).refresh()
-                            val took = String.format(
-                                java.util.Locale.US,
-                                "%.1fs",
-                                (System.currentTimeMillis() - t0) / 1000.0,
-                            )
-                            debug = when (r) {
-                                is FetchResult.Success -> {
-                                    updateAllWidgets(context)
-                                    "OK in $took"
-                                }
-                                is FetchResult.NeedsLogin -> "NeedsLogin in $took"
-                                is FetchResult.Soft -> "Soft(${r.reason}) in $took"
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text("Test fetch now", modifier = Modifier.padding(start = 8.dp))
-                }
-
-                if (debug.isNotBlank()) {
-                    Text(debug, style = MaterialTheme.typography.bodyMedium)
-                }
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Text(tapDiag, style = MaterialTheme.typography.bodySmall)
-                Text("build: $BUILD_TAG", style = MaterialTheme.typography.bodySmall)
-            }
-        },
-    )
-}
 
 
 @Composable
@@ -974,19 +895,6 @@ private fun SettingRow(icon: ImageVector, label: String, trailing: @Composable (
     }
 }
 
-
-private fun describeTap(s: Storage): String {
-    val started = s.tapStartedAt
-    if (started == 0L) return "Last widget tap: none recorded yet"
-    val clock = java.text.SimpleDateFormat("h:mm:ss a", java.util.Locale.US)
-        .format(java.util.Date(started))
-    val finished = s.tapFinishedAt
-    if (finished == 0L) {
-        val secs = (System.currentTimeMillis() - started) / 1000
-        return "Last widget tap: $clock — STILL RUNNING (${secs}s)"
-    }
-    return "Last widget tap: $clock\n${s.tapDiag ?: "?"}"
-}
 
 private fun notificationsEnabled(context: Context): Boolean =
     Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||

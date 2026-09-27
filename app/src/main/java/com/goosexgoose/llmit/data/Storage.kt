@@ -338,6 +338,8 @@ class Storage private constructor(
         snapshot.unregisterOnSharedPreferenceChangeListener(l)
     }
 
+    fun nudge() { snapshot.edit().putLong("_nudge", System.currentTimeMillis()).apply() }
+
     val hasSnapshot: Boolean get() = fiveHourUtil >= 0f
 
     fun saveSnapshot(s: UsageSnapshot) {

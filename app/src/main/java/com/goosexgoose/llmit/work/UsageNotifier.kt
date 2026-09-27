@@ -90,10 +90,10 @@ object UsageNotifier {
             }
         }
 
-        checkReset(context, storage, "${prefix}5h", storage.reset5hMode, rid5h, reset5hTitleRes(serviceId), snapshot.fiveHour, serviceId)
-        checkReset(context, storage, "${prefix}7d", storage.resetWeeklyMode, rid7d, reset7dTitleRes(serviceId), snapshot.sevenDay, serviceId)
+        checkReset(context, storage, "${prefix}5h", storage.reset5hMode, rid5h, reset5hTitleRes(serviceId), resetBody5hRes(serviceId), snapshot.fiveHour, serviceId)
+        checkReset(context, storage, "${prefix}7d", storage.resetWeeklyMode, rid7d, reset7dTitleRes(serviceId), resetBody7dRes(serviceId), snapshot.sevenDay, serviceId)
         snapshot.fableWeekly?.let {
-            checkReset(context, storage, "${prefix}fable", storage.resetWeeklyMode, ridFable, resetFableTitleRes(), it, serviceId)
+            checkReset(context, storage, "${prefix}fable", storage.resetWeeklyMode, ridFable, resetFableTitleRes(), R.string.reset_body_claude_fable, it, serviceId)
         }
 
         if (storage.weeklyWarningsEnabled) {
@@ -111,6 +111,7 @@ object UsageNotifier {
         mode: ResetNotify,
         notificationId: Int,
         titleRes: Int,
+        bodyRes: Int,
         window: Window,
         serviceId: String = "claude",
     ) {
@@ -136,7 +137,7 @@ object UsageNotifier {
         if (!shouldNotify) return
 
         post(context, RESET_CHANNEL_ID, notificationId,
-            context.getString(titleRes), context.getString(resetBodyResForService(serviceId)), serviceId)
+            context.getString(titleRes), context.getString(bodyRes), serviceId)
     }
 
     private fun checkWindow(
@@ -215,10 +216,16 @@ object UsageNotifier {
         else -> R.string.notify_body_claude
     }
 
-    private fun resetBodyResForService(serviceId: String): Int = when (serviceId) {
-        "openai" -> R.string.reset_body_openai
-        "cursor" -> R.string.reset_body_cursor
-        else -> R.string.reset_body_claude
+    private fun resetBody5hRes(serviceId: String): Int = when (serviceId) {
+        "openai" -> R.string.reset_body_openai_5h
+        "cursor" -> R.string.reset_body_cursor_5h
+        else -> R.string.reset_body_claude_5h
+    }
+
+    private fun resetBody7dRes(serviceId: String): Int = when (serviceId) {
+        "openai" -> R.string.reset_body_openai_7d
+        "cursor" -> R.string.reset_body_cursor_7d
+        else -> R.string.reset_body_claude_7d
     }
 
     private fun notify5hTitleRes(serviceId: String): Int = when (serviceId) {
@@ -250,9 +257,9 @@ object UsageNotifier {
     private fun resetFableTitleRes(): Int = R.string.reset_claude_fable_title
 
     private fun weeklyLabel(serviceId: String): String = when (serviceId) {
-        "openai" -> "ChatGPT secondary"
-        "cursor" -> "Cursor API"
-        else -> "Weekly"
+        "openai" -> "Codex Weekly"
+        "cursor" -> "Cursor Weekly"
+        else -> "Claude Weekly"
     }
 
     private fun fableLabel(): String = "Claude Fable"

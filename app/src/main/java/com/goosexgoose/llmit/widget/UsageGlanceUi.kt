@@ -118,7 +118,7 @@ private fun colorForPct(pct: Int): ColorProvider = when {
 
 @Composable
 fun UsageWidgetContent(state: WidgetState) {
-    val size = LocalSize.current
+    val size = widgetSize()
     val compact = size.width < COMPACT_MAX_WIDTH
     val context = LocalContext.current
 
@@ -150,18 +150,20 @@ fun UsageWidgetContent(state: WidgetState) {
             state.refreshing -> RefreshingIndicator()
             state.hasData && state.stale -> StaleDot()
         }
+        DebugSizeTag()
     }
 }
 
 @Composable
 private fun FullLayout(s: WidgetState) {
-    val size = LocalSize.current
+    val size = widgetSize()
     val scale = (size.height.value / 140f).coerceIn(0.8f, 2.5f)
-    val iconSize = (16 * scale).coerceAtLeast(16f).dp
-    val barHeight = (6 * scale).coerceAtLeast(6f).dp
-    val fontSize = (14 * scale).coerceAtLeast(14f).sp
-    val smallFontSize = (12 * scale).coerceAtLeast(12f).sp
-    val rowSpacing = (10 * scale).coerceAtLeast(10f).dp
+    val iconSize = (16 * scale).coerceIn(12f, 40f).dp
+    val barHeight = (6 * scale).coerceIn(4f, 15f).dp
+    val fontSize = (14 * scale).coerceIn(11f, 35f).sp
+    val smallFontSize = (12 * scale).coerceIn(10f, 30f).sp
+    val rowSpacing = (10 * scale).coerceIn(6f, 25f).dp
+    val gap = (6 * scale).coerceIn(4f, 15f).dp
 
     Column(modifier = GlanceModifier.fillMaxWidth()) {
         if (s.serviceLabel.isNotEmpty()) {
@@ -173,7 +175,7 @@ private fun FullLayout(s: WidgetState) {
                         contentDescription = null,
                         modifier = GlanceModifier.size(iconSize),
                     )
-                    Spacer(GlanceModifier.width(6.dp))
+                    Spacer(GlanceModifier.width(gap))
                 }
                 Text(
                     s.serviceLabel,
@@ -182,9 +184,10 @@ private fun FullLayout(s: WidgetState) {
                         fontWeight = FontWeight.Bold,
                         fontSize = fontSize,
                     ),
+                    maxLines = 1,
                 )
             }
-            Spacer(GlanceModifier.height(6.dp))
+            Spacer(GlanceModifier.height(gap))
         }
         MeterRow(s.primaryLabel, s.fiveHourPct, s.fiveHourResetLabel, s.showUsed, barHeight, fontSize, smallFontSize)
         Spacer(GlanceModifier.height(rowSpacing))
@@ -235,58 +238,68 @@ private fun MeterRow(
                     color = GlanceTheme.colors.onSurfaceVariant,
                     fontSize = smallFontSize,
                 ),
+                maxLines = 1,
             )
         }
         Spacer(GlanceModifier.height((barHeight.value * 0.67f).dp))
-        LinearProgressIndicator(
-            progress = (pct.coerceIn(0, 100)) / 100f,
-            modifier = GlanceModifier.fillMaxWidth().height(barHeight).cornerRadius((barHeight.value / 2).dp),
-            color = colorForPct(pct),
-            backgroundColor = barTrack(),
-        )
+        Box(modifier = GlanceModifier.fillMaxWidth().padding(start = labelWidth)) {
+            LinearProgressIndicator(
+                progress = (pct.coerceIn(0, 100)) / 100f,
+                modifier = GlanceModifier.fillMaxWidth().height(barHeight).cornerRadius((barHeight.value / 2).dp),
+                color = colorForPct(pct),
+                backgroundColor = barTrack(),
+            )
+        }
     }
 }
 
 @Composable
 private fun CompactLayout(s: WidgetState) {
+    val size = widgetSize()
+    val sc = (size.height.value / 100f).coerceIn(0.7f, 2.0f)
+    val lobsterSize = (16 * sc).coerceIn(12f, 32f).dp
+    val spacing = (6 * sc).coerceIn(3f, 12f).dp
+
     Column(modifier = GlanceModifier.fillMaxWidth()) {
-        Lobster(16.dp)
-        Spacer(GlanceModifier.height(6.dp))
-        CompactMeter(s.primaryLabel, s.fiveHourPct, s.showUsed)
-        Spacer(GlanceModifier.height(6.dp))
-        CompactMeter(s.secondaryLabel, s.sevenDayPct, s.showUsed)
+        Lobster(lobsterSize)
+        Spacer(GlanceModifier.height(spacing))
+        CompactMeter(s.primaryLabel, s.fiveHourPct, s.showUsed, sc)
+        Spacer(GlanceModifier.height(spacing))
+        CompactMeter(s.secondaryLabel, s.sevenDayPct, s.showUsed, sc)
         if (s.showFableWeekly) {
-            Spacer(GlanceModifier.height(6.dp))
-            CompactMeter("Fable", s.fableWeeklyPct, s.showUsed)
+            Spacer(GlanceModifier.height(spacing))
+            CompactMeter("Fable", s.fableWeeklyPct, s.showUsed, sc)
         }
     }
 }
 
 @Composable
-private fun CompactMeter(label: String, pct: Int, showUsed: Boolean = false) {
+private fun CompactMeter(label: String, pct: Int, showUsed: Boolean = false, scale: Float = 1f) {
     val displayPct = if (showUsed) pct else (100 - pct).coerceIn(0, 100)
+    val fontSize = (12 * scale).coerceIn(10f, 24f).sp
+    val barH = (6 * scale).coerceIn(4f, 12f).dp
     Column(modifier = GlanceModifier.fillMaxWidth()) {
         Row(modifier = GlanceModifier.fillMaxWidth()) {
             Text(
                 label,
-                style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontWeight = FontWeight.Bold),
+                style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontWeight = FontWeight.Bold, fontSize = fontSize),
             )
             Spacer(GlanceModifier.defaultWeight())
             Text(
                 "$displayPct%",
-                style = TextStyle(color = GlanceTheme.colors.onSurface, fontWeight = FontWeight.Bold),
+                style = TextStyle(color = GlanceTheme.colors.onSurface, fontWeight = FontWeight.Bold, fontSize = fontSize),
             )
         }
-        Spacer(GlanceModifier.height(3.dp))
-        Bar(pct)
+        Spacer(GlanceModifier.height((3 * scale).coerceIn(2f, 6f).dp))
+        Bar(pct, barH)
     }
 }
 
 @Composable
-private fun Bar(pct: Int) {
+private fun Bar(pct: Int, height: androidx.compose.ui.unit.Dp = 6.dp) {
     LinearProgressIndicator(
         progress = (pct.coerceIn(0, 100)) / 100f,
-        modifier = GlanceModifier.fillMaxWidth().height(6.dp).cornerRadius(3.dp),
+        modifier = GlanceModifier.fillMaxWidth().height(height).cornerRadius((height.value / 2).dp),
         color = colorForPct(pct),
         backgroundColor = barTrack(),
     )
@@ -331,7 +344,7 @@ private fun Loading(compact: Boolean) {
 }
 
 @Composable
-private fun RefreshingIndicator() {
+internal fun RefreshingIndicator() {
     Box(
         modifier = GlanceModifier.fillMaxSize().padding(2.dp),
         contentAlignment = Alignment.TopEnd,
@@ -343,8 +356,36 @@ private fun RefreshingIndicator() {
     }
 }
 
+// Launcher hands Glance the landscape size while in portrait; derive it from options + orientation.
 @Composable
-private fun StaleDot() {
+internal fun widgetSize(): androidx.compose.ui.unit.DpSize {
+    val fallback = LocalSize.current
+    val opts = androidx.glance.appwidget.LocalAppWidgetOptions.current
+    val portrait = LocalContext.current.resources.configuration.orientation !=
+        android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val w = opts.getInt(if (portrait) android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH
+        else android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)
+    val h = opts.getInt(if (portrait) android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT
+        else android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+    return if (w > 0 && h > 0) androidx.compose.ui.unit.DpSize(w.dp, h.dp) else fallback
+}
+
+@Composable
+internal fun DebugSizeTag() {
+    val ctx = LocalContext.current
+    if (ctx.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE == 0) return
+    val raw = LocalSize.current
+    val size = widgetSize()
+    Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.BottomStart) {
+        Text(
+            "${raw.width.value.roundToInt()}x${raw.height.value.roundToInt()} -> ${size.width.value.roundToInt()}x${size.height.value.roundToInt()}",
+            style = TextStyle(color = ColorProvider(R.color.stale), fontSize = 9.sp),
+        )
+    }
+}
+
+@Composable
+internal fun StaleDot() {
     Box(
         modifier = GlanceModifier.fillMaxSize().padding(2.dp),
         contentAlignment = Alignment.TopEnd,

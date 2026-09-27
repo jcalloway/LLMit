@@ -97,4 +97,8 @@ class DashboardWidget : GlanceAppWidget() {
 
 class DashboardWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget = DashboardWidget()
+    override fun onAppWidgetOptionsChanged(context: android.content.Context, appWidgetManager: android.appwidget.AppWidgetManager, appWidgetId: Int, newOptions: android.os.Bundle) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        com.goosexgoose.llmit.data.Storage.get(context).nudge()
+    }
 }

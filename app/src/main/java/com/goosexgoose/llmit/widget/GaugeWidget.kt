@@ -87,10 +87,16 @@ class GaugeWidget : GlanceAppWidget() {
             bgColorKey = s.widgetBgColorKey(awId),
             showUsed = s.showUsed,
             windowLabel = windowModeLabel(windowMode),
+            refreshing = s.refreshRequestedAt > 0L && now - s.refreshRequestedAt < 60_000L,
+            stale = TimeFmt.isStale(s.fetchedAt, now),
         )
     }
 }
 
 class GaugeWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = GaugeWidget()
+    override fun onAppWidgetOptionsChanged(context: android.content.Context, appWidgetManager: android.appwidget.AppWidgetManager, appWidgetId: Int, newOptions: android.os.Bundle) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        com.goosexgoose.llmit.data.Storage.get(context).nudge()
+    }
 }

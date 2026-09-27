@@ -92,6 +92,8 @@ class CombinedWidget : GlanceAppWidget() {
             bgColorKey = s.widgetBgColorKey(awId),
             showUsed = s.showUsed,
             windowLabel = windowModeLabel(windowMode),
+            refreshing = s.refreshRequestedAt > 0L && now - s.refreshRequestedAt < 60_000L,
+            stale = TimeFmt.isStale(s.fetchedAt, now),
         )
     }
 }

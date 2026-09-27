@@ -10,6 +10,8 @@
     <string name="dashboard_label">Dashboard</string>
     <string name="bars_label">Bars</string>
     <string name="gauge_label">Gauges</string>
+    <string name="strip_label">Strip</string>
+    <string name="strip_widget_description">Single service, limits side by side</string>
     <string name="widget_title">Claude</string>
     <string name="resets_in">%1$s</string>
     <string name="resets_at">%1$s</string>
@@ -37,7 +39,11 @@
     <string name="reset_openai_7d_title">ChatGPT secondary limit reset</string>
     <string name="reset_cursor_5h_title">Cursor auto-complete reset</string>
     <string name="reset_cursor_7d_title">Cursor API limit reset</string>
-    <string name="reset_body_claude">Your Claude limit is available again.</string>
-    <string name="reset_body_openai">Your ChatGPT limit is available again.</string>
-    <string name="reset_body_cursor">Your Cursor limit is available again.</string>
+    <string name="reset_body_claude_5h">Your Claude 5-hour limit is available again.</string>
+    <string name="reset_body_claude_7d">Your Claude weekly limit is available again.</string>
+    <string name="reset_body_claude_fable">Your Claude Fable weekly limit is available again.</string>
+    <string name="reset_body_openai_5h">Your ChatGPT primary limit is available again.</string>
+    <string name="reset_body_openai_7d">Your ChatGPT secondary limit is available again.</string>
+    <string name="reset_body_cursor_5h">Your Cursor auto-complete limit is available again.</string>
+    <string name="reset_body_cursor_7d">Your Cursor API limit is available again.</string>
 </resources>

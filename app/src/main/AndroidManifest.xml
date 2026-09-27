@@ -96,6 +96,18 @@
                 android:resource="@xml/dashboard_widget_info" />
         </receiver>
 
+        <receiver
+            android:name=".widget.StripWidgetReceiver"
+            android:label="@string/strip_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/strip_widget_info" />
+        </receiver>
+
         <!-- Fired by the exact reset alarm; triggered only via an explicit PendingIntent. -->
         <receiver
             android:name=".work.ResetAlarmReceiver"

@@ -45,7 +45,7 @@ class ServiceWidget : GlanceAppWidget() {
         awaitClose { storage.unregisterSnapshotListener(listener) }
     }.conflate()
 
-    private fun readState(context: Context, awId: Int): WidgetState {
+    internal fun readState(context: Context, awId: Int): WidgetState {
         val s = Storage.get(context)
         val now = System.currentTimeMillis()
         val absolute = s.showAbsoluteResetTime
@@ -127,4 +127,5 @@ suspend fun updateAllWidgets(context: Context) {
     try { CombinedWidget().updateAll(context) } catch (_: Exception) {}
     try { GaugeWidget().updateAll(context) } catch (_: Exception) {}
     try { DashboardWidget().updateAll(context) } catch (_: Exception) {}
+    try { StripWidget().updateAll(context) } catch (_: Exception) {}
 }
