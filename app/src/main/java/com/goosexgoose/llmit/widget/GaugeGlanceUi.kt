@@ -221,9 +221,7 @@ fun GaugeWidgetContent(state: CombinedWidgetState) {
         when {
             state.refreshing -> RefreshingIndicator()
             state.stale -> StaleDot()
-        }
-        DebugSizeTag()
-    }
+        }    }
 }
 
 @Composable

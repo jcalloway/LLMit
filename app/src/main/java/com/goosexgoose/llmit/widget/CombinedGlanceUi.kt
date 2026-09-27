@@ -62,7 +62,7 @@ fun CombinedWidgetContent(state: CombinedWidgetState) {
     val size = widgetSize()
     val compact = size.width < 130.dp
     val serviceCount = state.services.size.coerceAtLeast(1)
-    val scale = minOf(size.height.value / (serviceCount * 38f), size.width.value / 230f).coerceIn(0.7f, 2.5f)
+    val scale = minOf(size.height.value / (serviceCount * 40f), size.width.value / 230f).coerceIn(0.7f, 2.5f)
 
     Box(
         modifier = GlanceModifier
@@ -103,9 +103,7 @@ fun CombinedWidgetContent(state: CombinedWidgetState) {
         when {
             state.refreshing -> RefreshingIndicator()
             state.stale -> StaleDot()
-        }
-        DebugSizeTag()
-    }
+        }    }
 }
 
 @Composable

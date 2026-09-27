@@ -175,7 +175,5 @@ fun DashboardWidgetContent(state: WidgetState) {
         when {
             state.refreshing -> RefreshingIndicator()
             state.hasData && state.stale -> StaleDot()
-        }
-        DebugSizeTag()
-    }
+        }    }
 }

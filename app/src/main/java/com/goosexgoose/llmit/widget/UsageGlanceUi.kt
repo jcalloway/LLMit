@@ -149,15 +149,16 @@ fun UsageWidgetContent(state: WidgetState) {
         when {
             state.refreshing -> RefreshingIndicator()
             state.hasData && state.stale -> StaleDot()
-        }
-        DebugSizeTag()
-    }
+        }    }
 }
 
 @Composable
 private fun FullLayout(s: WidgetState) {
     val size = widgetSize()
-    val scale = (size.height.value / (if (s.showFableWeekly) 165f else 140f)).coerceIn(0.8f, 2.5f)
+    val scale = minOf(
+        size.height.value / (if (s.showFableWeekly) 165f else 140f),
+        (size.width.value - 24f) / 180f,
+    ).coerceIn(0.8f, 2.5f)
     val iconSize = (16 * scale).coerceIn(12f, 40f).dp
     val barHeight = (6 * scale).coerceIn(4f, 15f).dp
     val fontSize = (14 * scale).coerceIn(11f, 35f).sp
@@ -232,6 +233,7 @@ private fun MeterRow(
                 ),
             )
             Spacer(GlanceModifier.defaultWeight())
+            Spacer(GlanceModifier.width((fontSize.value * 0.4f).dp))
             Text(
                 resetLabel,
                 style = TextStyle(
@@ -370,20 +372,6 @@ internal fun widgetSize(): androidx.compose.ui.unit.DpSize {
     // ponytail: portrait MAX_HEIGHT measured ~14% over the real height on the user's launcher; undershoot pads, overshoot clips
     val hFactor = if (portrait) 0.87f else 1f
     return if (w > 0 && h > 0) androidx.compose.ui.unit.DpSize(w.dp, (h * hFactor).dp) else fallback
-}
-
-@Composable
-internal fun DebugSizeTag() {
-    val ctx = LocalContext.current
-    if (ctx.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE == 0) return
-    val raw = LocalSize.current
-    val size = widgetSize()
-    Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.BottomStart) {
-        Text(
-            "${raw.width.value.roundToInt()}x${raw.height.value.roundToInt()} -> ${size.width.value.roundToInt()}x${size.height.value.roundToInt()}",
-            style = TextStyle(color = ColorProvider(R.color.stale), fontSize = 9.sp),
-        )
-    }
 }
 
 @Composable
