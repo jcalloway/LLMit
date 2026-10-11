@@ -13,10 +13,15 @@ import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.provideContent
 import com.goosexgoose.llmit.data.Storage
+import com.goosexgoose.llmit.work.RefreshScheduler
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 class StripWidget : GlanceAppWidget() {
 
@@ -33,19 +38,32 @@ class StripWidget : GlanceAppWidget() {
         }
     }
 
-    private fun stateFlow(context: Context, awId: Int): Flow<WidgetState> = callbackFlow {
+    private fun stateFlow(context: Context, awId: Int): Flow<WidgetState> = callbackFlow<Unit> {
         val storage = Storage.get(context)
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
-            trySend(source.readState(context, awId))
+            trySend(Unit)
         }
         storage.registerSnapshotListener(listener)
-        trySend(source.readState(context, awId))
+        trySend(Unit)
+        launch { while (true) { delay(60_000L); trySend(Unit) } }
         awaitClose { storage.unregisterSnapshotListener(listener) }
-    }.conflate()
+    }.debounce(100).conflate().map { source.readState(context, awId) }
 }
 
 class StripWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = StripWidget()
+
+    override fun onEnabled(context: android.content.Context) {
+        super.onEnabled(context)
+        RefreshScheduler.ensurePeriodic(context)
+        RefreshScheduler.refreshNow(context)
+    }
+
+    override fun onUpdate(context: android.content.Context, appWidgetManager: android.appwidget.AppWidgetManager, appWidgetIds: IntArray) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        RefreshScheduler.ensurePeriodic(context)
+    }
+
     override fun onAppWidgetOptionsChanged(context: android.content.Context, appWidgetManager: android.appwidget.AppWidgetManager, appWidgetId: Int, newOptions: android.os.Bundle) {
         super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
         Storage.get(context).nudge()

@@ -14,9 +14,13 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import com.goosexgoose.llmit.data.Storage
 import com.goosexgoose.llmit.data.WidgetWindowMode
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 class CombinedWidget : GlanceAppWidget() {
@@ -32,15 +36,16 @@ class CombinedWidget : GlanceAppWidget() {
         }
     }
 
-    private fun stateFlow(context: Context, awId: Int): Flow<CombinedWidgetState> = callbackFlow {
+    private fun stateFlow(context: Context, awId: Int): Flow<CombinedWidgetState> = callbackFlow<Unit> {
         val storage = Storage.get(context)
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
-            trySend(readState(context, awId))
+            trySend(Unit)
         }
         storage.registerSnapshotListener(listener)
-        trySend(readState(context, awId))
+        trySend(Unit)
+        launch { while (true) { delay(60_000L); trySend(Unit) } }
         awaitClose { storage.unregisterSnapshotListener(listener) }
-    }.conflate()
+    }.debounce(100).conflate().map { readState(context, awId) }
 
     private fun readState(context: Context, awId: Int): CombinedWidgetState {
         val s = Storage.get(context)
@@ -48,8 +53,10 @@ class CombinedWidget : GlanceAppWidget() {
         val windowMode = s.widgetWindowMode(awId)
         val absolute = s.showAbsoluteResetTime
         val services = mutableListOf<CombinedServiceState>()
+        var latestFetch = 0L
 
         if (s.isLoggedIn && s.hasSnapshot) {
+            latestFetch = maxOf(latestFetch, s.fetchedAt)
             val pct5 = s.fiveHourUtil.coerceAtLeast(0f).roundToInt()
             val pct7 = s.sevenDayUtil.coerceAtLeast(0f).roundToInt()
             val (pct, reset) = pickWindow(windowMode, pct5, s.fiveHourReset, pct7, s.sevenDayReset)
@@ -62,6 +69,7 @@ class CombinedWidget : GlanceAppWidget() {
         if (s.isOpenaiLoggedIn) {
             val snap = s.loadServiceSnapshot("openai")
             if (snap.hasData) {
+                latestFetch = maxOf(latestFetch, snap.fetchedAt)
                 val pct5 = snap.fiveHourUtil.coerceAtLeast(0f).roundToInt()
                 val pct7 = snap.sevenDayUtil.coerceAtLeast(0f).roundToInt()
                 val (pct, reset) = pickWindow(windowMode, pct5, snap.fiveHourReset, pct7, snap.sevenDayReset)
@@ -75,6 +83,7 @@ class CombinedWidget : GlanceAppWidget() {
         if (s.isCursorLoggedIn) {
             val snap = s.loadServiceSnapshot("cursor")
             if (snap.hasData) {
+                latestFetch = maxOf(latestFetch, snap.fetchedAt)
                 val pct5 = snap.fiveHourUtil.coerceAtLeast(0f).roundToInt()
                 val pct7 = snap.sevenDayUtil.coerceAtLeast(0f).roundToInt()
                 val (pct, reset) = pickWindow(windowMode, pct5, snap.fiveHourReset, pct7, snap.sevenDayReset)
@@ -86,6 +95,8 @@ class CombinedWidget : GlanceAppWidget() {
             }
         }
 
+        val anyLoggedIn = s.isLoggedIn || s.isOpenaiLoggedIn || s.isCursorLoggedIn
+
         return CombinedWidgetState(
             services = services,
             bgOpacityPercent = s.widgetOpacityPercent(awId),
@@ -93,7 +104,8 @@ class CombinedWidget : GlanceAppWidget() {
             showUsed = s.showUsed,
             windowLabel = windowModeLabel(windowMode),
             refreshing = s.refreshRequestedAt > 0L && now - s.refreshRequestedAt < 60_000L,
-            stale = TimeFmt.isStale(s.fetchedAt, now),
+            stale = services.isNotEmpty() && TimeFmt.isStale(latestFetch, now),
+            needsLogin = !anyLoggedIn,
         )
     }
 }

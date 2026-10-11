@@ -51,12 +51,17 @@ data class UsageSnapshot(
         fun parseOpenAi(body: String, now: Long): UsageSnapshot {
             val root = JSONObject(body)
             val rl = root.optJSONObject("rate_limit") ?: root
-            val primary = rl.optJSONObject("primary_window")
+            // Pro Lite sends only a weekly primary_window, so slot windows by length, not position.
             val secondary = rl.optJSONObject("secondary_window")
+            val windows = listOfNotNull(rl.optJSONObject("primary_window"), secondary)
+            val (long, short) = windows.partition {
+                val len = it.optLong("limit_window_seconds", 0L)
+                if (len > 0L) len >= 86_400L else it === secondary
+            }
             val tier = root.optString("plan_type", "").ifBlank { null }
             return UsageSnapshot(
-                fiveHour = primary?.toOpenAiWindow() ?: Window(-1f, 0L),
-                sevenDay = secondary?.toOpenAiWindow() ?: Window(-1f, 0L),
+                fiveHour = short.firstOrNull()?.toOpenAiWindow() ?: Window(-1f, 0L),
+                sevenDay = long.firstOrNull()?.toOpenAiWindow() ?: Window(-1f, 0L),
                 fableWeekly = null,
                 fetchedAtEpochMs = now,
                 planTier = tier,

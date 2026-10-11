@@ -1,5 +1,6 @@
 package com.goosexgoose.llmit.widget
 
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -7,11 +8,12 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
-import androidx.glance.LocalSize
+import androidx.glance.LocalContext
 import androidx.glance.appwidget.LinearProgressIndicator
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -29,6 +31,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.goosexgoose.llmit.R
+import com.goosexgoose.llmit.ui.MainActivity
 
 data class CombinedServiceState(
     val serviceId: String,
@@ -49,6 +52,7 @@ data class CombinedWidgetState(
     val windowLabel: String = "",
     val refreshing: Boolean = false,
     val stale: Boolean = false,
+    val needsLogin: Boolean = false,
 )
 
 private fun colorForPct(pct: Int): ColorProvider = when {
@@ -63,6 +67,13 @@ fun CombinedWidgetContent(state: CombinedWidgetState) {
     val compact = size.width < 130.dp
     val serviceCount = state.services.size.coerceAtLeast(1)
     val scale = minOf(size.height.value / (serviceCount * 40f), size.width.value / 230f).coerceIn(0.7f, 2.5f)
+    val context = LocalContext.current
+
+    val tap = if (state.needsLogin) {
+        actionStartActivity(Intent(context, MainActivity::class.java))
+    } else {
+        actionRunCallback<RefreshAction>()
+    }
 
     Box(
         modifier = GlanceModifier
@@ -73,13 +84,16 @@ fun CombinedWidgetContent(state: CombinedWidgetState) {
                 horizontal = if (compact) 8.dp else (12 * scale).coerceIn(10f, 24f).dp,
                 vertical = if (compact) 6.dp else (6 * scale).coerceIn(4f, 12f).dp,
             )
-            .clickable(actionRunCallback<RefreshAction>()),
+            .clickable(tap),
         contentAlignment = Alignment.Center,
     ) {
-        if (state.services.isEmpty()) {
-            Text("No services", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant))
-        } else {
-            Column(modifier = GlanceModifier.fillMaxWidth()) {
+        when {
+            state.needsLogin -> Text(
+                context.getString(R.string.tap_to_sign_in),
+                style = TextStyle(color = GlanceTheme.colors.onSurface, fontWeight = FontWeight.Medium),
+            )
+            state.services.isEmpty() -> Text("…", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant))
+            else -> Column(modifier = GlanceModifier.fillMaxWidth()) {
                 if (state.windowLabel.isNotEmpty()) {
                     Text(
                         state.windowLabel,
@@ -102,8 +116,9 @@ fun CombinedWidgetContent(state: CombinedWidgetState) {
         }
         when {
             state.refreshing -> RefreshingIndicator()
-            state.stale -> StaleDot()
-        }    }
+            state.services.isNotEmpty() && state.stale -> StaleDot()
+        }
+    }
 }
 
 @Composable

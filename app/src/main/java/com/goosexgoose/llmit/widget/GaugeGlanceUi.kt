@@ -1,21 +1,24 @@
 package com.goosexgoose.llmit.widget
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
-import androidx.glance.LocalSize
+import androidx.glance.LocalContext
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -35,6 +38,7 @@ import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.goosexgoose.llmit.R
+import com.goosexgoose.llmit.ui.MainActivity
 
 internal fun gaugeColorInt(pct: Int): Int = when {
     pct >= 85 -> 0xFFD1453B.toInt()
@@ -149,6 +153,7 @@ fun GaugeWidgetContent(state: CombinedWidgetState) {
     val compact = size.width < 130.dp
     val isConcentric = state.windowLabel.isEmpty()
     val serviceCount = state.services.size.coerceAtLeast(1)
+    val context = LocalContext.current
 
     val s = (size.height.value / 120f).coerceIn(0.7f, 2.5f)
     val pad = (8 * s).coerceIn(6f, 12f).dp
@@ -159,10 +164,18 @@ fun GaugeWidgetContent(state: CombinedWidgetState) {
     val availW = size.width - pad * 2 - totalSpacing
     val availH = size.height - pad * 2 - labelHeight
     val maxByWidth = availW / serviceCount
-    val gaugeSize = minOf(maxByWidth, availH).coerceIn(48.dp, 300.dp)
-    val concentricSize = (minOf(maxByWidth, availH) * 0.92f).coerceIn(80.dp, 300.dp)
+    // ponytail: no lower clamp; fall back to compact if cells are too small
+    val gaugeSize = minOf(maxByWidth, availH).coerceAtMost(300.dp)
+    val concentricSize = (minOf(maxByWidth, availH) * 0.92f).coerceAtMost(300.dp)
+    val useCompact = compact || (isConcentric && concentricSize < 80.dp) || (!isConcentric && gaugeSize < 48.dp)
     val arcSizePx = (gaugeSize.value * 3f).toInt().coerceIn(120, 900)
     val concentricPx = (concentricSize.value * 3f).toInt().coerceIn(160, 900)
+
+    val tap = if (state.needsLogin) {
+        actionStartActivity(Intent(context, MainActivity::class.java))
+    } else {
+        actionRunCallback<RefreshAction>()
+    }
 
     Box(
         modifier = GlanceModifier
@@ -170,13 +183,16 @@ fun GaugeWidgetContent(state: CombinedWidgetState) {
             .background(widgetBgFor(state.bgOpacityPercent, state.bgColorKey))
             .cornerRadius(20.dp)
             .padding(pad)
-            .clickable(actionRunCallback<RefreshAction>()),
+            .clickable(tap),
         contentAlignment = Alignment.Center,
     ) {
-        if (state.services.isEmpty()) {
-            Text("No services", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant))
-        } else if (compact) {
-            Column(
+        when {
+            state.needsLogin -> Text(
+                context.getString(R.string.tap_to_sign_in),
+                style = TextStyle(color = GlanceTheme.colors.onSurface, fontWeight = FontWeight.Medium),
+            )
+            state.services.isEmpty() -> Text("…", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant))
+            useCompact -> Column(
                 modifier = GlanceModifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -185,8 +201,7 @@ fun GaugeWidgetContent(state: CombinedWidgetState) {
                     CompactGaugeRow(svc, state.showUsed, s)
                 }
             }
-        } else if (isConcentric) {
-            Row(
+            isConcentric -> Row(
                 modifier = GlanceModifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalAlignment = Alignment.CenterVertically,
@@ -201,8 +216,7 @@ fun GaugeWidgetContent(state: CombinedWidgetState) {
                     }
                 }
             }
-        } else {
-            Row(
+            else -> Row(
                 modifier = GlanceModifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalAlignment = Alignment.CenterVertically,
@@ -220,8 +234,9 @@ fun GaugeWidgetContent(state: CombinedWidgetState) {
         }
         when {
             state.refreshing -> RefreshingIndicator()
-            state.stale -> StaleDot()
-        }    }
+            state.services.isNotEmpty() && state.stale -> StaleDot()
+        }
+    }
 }
 
 @Composable
@@ -233,12 +248,15 @@ private fun ConcentricGaugeCell(svc: CombinedServiceState, showUsed: Boolean, ce
     val iconRes = serviceIconRes(svc.serviceId)
     val logoSize = (cellSize.value * 0.25f).coerceIn(16f, 64f).dp
 
+    val bmp = remember(disp5, pct5, disp7, pct7, svc.primaryLabel, svc.secondaryLabel, sizePx) {
+        drawConcentricBitmap(disp5, pct5, disp7, pct7, svc.primaryLabel, svc.secondaryLabel, sizePx)
+    }
     Box(
         modifier = GlanceModifier.size(cellSize),
         contentAlignment = Alignment.Center,
     ) {
         Image(
-            provider = ImageProvider(drawConcentricBitmap(disp5, pct5, disp7, pct7, svc.primaryLabel, svc.secondaryLabel, sizePx)),
+            provider = ImageProvider(bmp),
             contentDescription = null,
             modifier = GlanceModifier.size(cellSize),
             contentScale = ContentScale.Fit,
@@ -262,6 +280,7 @@ private fun CircularGaugeCell(svc: CombinedServiceState, showUsed: Boolean, wind
     val fontSize = (gaugeSize.value * 0.20f).coerceIn(11f, 36f).sp
     val labelFontSize = (gaugeSize.value * 0.14f).coerceIn(10f, 28f).sp
 
+    val bmp = remember(displayPct, pct, arcSizePx) { drawArcBitmap(displayPct, pct, arcSizePx) }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -270,7 +289,7 @@ private fun CircularGaugeCell(svc: CombinedServiceState, showUsed: Boolean, wind
             contentAlignment = Alignment.Center,
         ) {
             Image(
-                provider = ImageProvider(drawArcBitmap(displayPct, pct, arcSizePx)),
+                provider = ImageProvider(bmp),
                 contentDescription = null,
                 modifier = GlanceModifier.size(gaugeSize),
                 contentScale = ContentScale.Fit,

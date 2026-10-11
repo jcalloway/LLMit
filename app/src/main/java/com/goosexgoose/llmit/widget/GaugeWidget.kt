@@ -14,10 +14,15 @@ import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import com.goosexgoose.llmit.data.Storage
 import com.goosexgoose.llmit.data.WidgetWindowMode
+import com.goosexgoose.llmit.work.RefreshScheduler
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 class GaugeWidget : GlanceAppWidget() {
@@ -33,23 +38,26 @@ class GaugeWidget : GlanceAppWidget() {
         }
     }
 
-    private fun stateFlow(context: Context, awId: Int): Flow<CombinedWidgetState> = callbackFlow {
+    private fun stateFlow(context: Context, awId: Int): Flow<CombinedWidgetState> = callbackFlow<Unit> {
         val storage = Storage.get(context)
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
-            trySend(readState(context, awId))
+            trySend(Unit)
         }
         storage.registerSnapshotListener(listener)
-        trySend(readState(context, awId))
+        trySend(Unit)
+        launch { while (true) { delay(60_000L); trySend(Unit) } }
         awaitClose { storage.unregisterSnapshotListener(listener) }
-    }.conflate()
+    }.debounce(100).conflate().map { readState(context, awId) }
 
     private fun readState(context: Context, awId: Int): CombinedWidgetState {
         val s = Storage.get(context)
         val now = System.currentTimeMillis()
         val windowMode = s.widgetWindowMode(awId)
         val services = mutableListOf<CombinedServiceState>()
+        var latestFetch = 0L
 
         if (s.isLoggedIn && s.hasSnapshot) {
+            latestFetch = maxOf(latestFetch, s.fetchedAt)
             val pct5 = s.fiveHourUtil.coerceAtLeast(0f).roundToInt()
             val pct7 = s.sevenDayUtil.coerceAtLeast(0f).roundToInt()
             val (pct, reset) = pickWindow(windowMode, pct5, s.fiveHourReset, pct7, s.sevenDayReset)
@@ -60,6 +68,7 @@ class GaugeWidget : GlanceAppWidget() {
         if (s.isOpenaiLoggedIn) {
             val snap = s.loadServiceSnapshot("openai")
             if (snap.hasData) {
+                latestFetch = maxOf(latestFetch, snap.fetchedAt)
                 val pct5 = snap.fiveHourUtil.coerceAtLeast(0f).roundToInt()
                 val pct7 = snap.sevenDayUtil.coerceAtLeast(0f).roundToInt()
                 val (pct, reset) = pickWindow(windowMode, pct5, snap.fiveHourReset, pct7, snap.sevenDayReset)
@@ -71,6 +80,7 @@ class GaugeWidget : GlanceAppWidget() {
         if (s.isCursorLoggedIn) {
             val snap = s.loadServiceSnapshot("cursor")
             if (snap.hasData) {
+                latestFetch = maxOf(latestFetch, snap.fetchedAt)
                 val pct5 = snap.fiveHourUtil.coerceAtLeast(0f).roundToInt()
                 val pct7 = snap.sevenDayUtil.coerceAtLeast(0f).roundToInt()
                 val (pct, reset) = pickWindow(windowMode, pct5, snap.fiveHourReset, pct7, snap.sevenDayReset)
@@ -81,6 +91,8 @@ class GaugeWidget : GlanceAppWidget() {
             }
         }
 
+        val anyLoggedIn = s.isLoggedIn || s.isOpenaiLoggedIn || s.isCursorLoggedIn
+
         return CombinedWidgetState(
             services = services,
             bgOpacityPercent = s.widgetOpacityPercent(awId),
@@ -88,15 +100,28 @@ class GaugeWidget : GlanceAppWidget() {
             showUsed = s.showUsed,
             windowLabel = windowModeLabel(windowMode),
             refreshing = s.refreshRequestedAt > 0L && now - s.refreshRequestedAt < 60_000L,
-            stale = TimeFmt.isStale(s.fetchedAt, now),
+            stale = services.isNotEmpty() && TimeFmt.isStale(latestFetch, now),
+            needsLogin = !anyLoggedIn,
         )
     }
 }
 
 class GaugeWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = GaugeWidget()
+
+    override fun onEnabled(context: android.content.Context) {
+        super.onEnabled(context)
+        RefreshScheduler.ensurePeriodic(context)
+        RefreshScheduler.refreshNow(context)
+    }
+
+    override fun onUpdate(context: android.content.Context, appWidgetManager: android.appwidget.AppWidgetManager, appWidgetIds: IntArray) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        RefreshScheduler.ensurePeriodic(context)
+    }
+
     override fun onAppWidgetOptionsChanged(context: android.content.Context, appWidgetManager: android.appwidget.AppWidgetManager, appWidgetId: Int, newOptions: android.os.Bundle) {
         super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
-        com.goosexgoose.llmit.data.Storage.get(context).nudge()
+        Storage.get(context).nudge()
     }
 }

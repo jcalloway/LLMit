@@ -1,17 +1,20 @@
 package com.goosexgoose.llmit.widget
 
+import android.content.Intent
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
-import androidx.glance.LocalSize
+import androidx.glance.LocalContext
 import androidx.glance.appwidget.LinearProgressIndicator
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -30,6 +33,7 @@ import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.goosexgoose.llmit.R
+import com.goosexgoose.llmit.ui.MainActivity
 
 @Composable
 fun DashboardWidgetContent(state: WidgetState) {
@@ -37,11 +41,19 @@ fun DashboardWidgetContent(state: WidgetState) {
     val scale = (size.height.value / 120f).coerceIn(0.8f, 2.5f)
     val gaugeSize = (size.height - (36 * scale).dp).coerceIn(48.dp, 200.dp)
     val arcPx = (gaugeSize.value * 3f).toInt().coerceIn(120, 900)
-    val pct5 = state.fiveHourPct.coerceIn(0, 100)
     val pct7 = state.sevenDayPct.coerceIn(0, 100)
+    val pct5 = if (state.showFiveHour) state.fiveHourPct.coerceIn(0, 100) else pct7
     val disp5 = if (state.showUsed) pct5 else (100 - pct5).coerceIn(0, 100)
     val disp7 = if (state.showUsed) pct7 else (100 - pct7).coerceIn(0, 100)
     val iconRes = serviceIconRes(state.serviceId)
+    val context = LocalContext.current
+    val bmp = remember(disp5, pct5, arcPx) { drawArcBitmap(disp5, pct5, arcPx) }
+
+    val tap = if (state.needsLogin) {
+        actionStartActivity(Intent(context, MainActivity::class.java))
+    } else {
+        actionRunCallback<RefreshAction>()
+    }
 
     Box(
         modifier = GlanceModifier
@@ -49,10 +61,17 @@ fun DashboardWidgetContent(state: WidgetState) {
             .background(widgetBgFor(state.bgOpacityPercent, state.bgColorKey))
             .cornerRadius(20.dp)
             .padding(horizontal = (10 * scale).coerceIn(8f, 16f).dp, vertical = (6 * scale).coerceIn(4f, 10f).dp)
-            .clickable(actionRunCallback<RefreshAction>()),
+            .clickable(tap),
         contentAlignment = Alignment.CenterStart,
     ) {
-        Row(
+        if (state.needsLogin) {
+            Text(
+                context.getString(R.string.tap_to_sign_in),
+                style = TextStyle(color = GlanceTheme.colors.onSurface, fontWeight = FontWeight.Medium),
+            )
+        } else if (!state.hasData) {
+            Text("…", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant))
+        } else Row(
             modifier = GlanceModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -62,7 +81,7 @@ fun DashboardWidgetContent(state: WidgetState) {
                     contentAlignment = Alignment.Center,
                 ) {
                     Image(
-                        provider = ImageProvider(drawArcBitmap(disp5, pct5, arcPx)),
+                        provider = ImageProvider(bmp),
                         contentDescription = null,
                         modifier = GlanceModifier.size(gaugeSize),
                     )
@@ -87,7 +106,7 @@ fun DashboardWidgetContent(state: WidgetState) {
                     }
                 }
                 Text(
-                    state.primaryLabel,
+                    if (state.showFiveHour) state.primaryLabel else state.secondaryLabel,
                     style = TextStyle(
                         color = GlanceTheme.colors.onSurfaceVariant,
                         fontWeight = FontWeight.Bold,
@@ -123,47 +142,49 @@ fun DashboardWidgetContent(state: WidgetState) {
                     )
                 }
                 Spacer(GlanceModifier.height((4 * scale).coerceIn(2f, 8f).dp))
-                Row(
-                    modifier = GlanceModifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                if (state.showFiveHour) {
+                    Row(
+                        modifier = GlanceModifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            state.secondaryLabel,
+                            style = TextStyle(
+                                color = GlanceTheme.colors.onSurfaceVariant,
+                                fontSize = (11 * scale).coerceIn(10f, 18f).sp,
+                            ),
+                            maxLines = 1,
+                        )
+                        Spacer(GlanceModifier.defaultWeight())
+                        Text(
+                            "$disp7%",
+                            style = TextStyle(
+                                color = gaugeColor(pct7),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = (14 * scale).coerceIn(12f, 22f).sp,
+                            ),
+                        )
+                    }
+                    Spacer(GlanceModifier.height((2 * scale).coerceIn(1f, 4f).dp))
+                    LinearProgressIndicator(
+                        progress = pct7 / 100f,
+                        modifier = GlanceModifier.fillMaxWidth().height((6 * scale).coerceIn(5f, 10f).dp).cornerRadius((3 * scale).dp),
+                        color = gaugeColor(pct7),
+                        backgroundColor = ColorProvider(R.color.bar_track),
+                    )
+                    Spacer(GlanceModifier.height((4 * scale).coerceIn(2f, 8f).dp))
                     Text(
-                        state.secondaryLabel,
+                        "${state.primaryResetPrefix}: ${state.fiveHourResetLabel}",
                         style = TextStyle(
                             color = GlanceTheme.colors.onSurfaceVariant,
-                            fontSize = (11 * scale).coerceIn(10f, 18f).sp,
+                            fontSize = (10 * scale).coerceIn(9f, 16f).sp,
                         ),
                         maxLines = 1,
                     )
-                    Spacer(GlanceModifier.defaultWeight())
-                    Text(
-                        "$disp7%",
-                        style = TextStyle(
-                            color = gaugeColor(pct7),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = (14 * scale).coerceIn(12f, 22f).sp,
-                        ),
-                    )
+                    Spacer(GlanceModifier.height((2 * scale).coerceIn(1f, 4f).dp))
                 }
-                Spacer(GlanceModifier.height((2 * scale).coerceIn(1f, 4f).dp))
-                LinearProgressIndicator(
-                    progress = pct7 / 100f,
-                    modifier = GlanceModifier.fillMaxWidth().height((6 * scale).coerceIn(5f, 10f).dp).cornerRadius((3 * scale).dp),
-                    color = gaugeColor(pct7),
-                    backgroundColor = ColorProvider(R.color.bar_track),
-                )
-                Spacer(GlanceModifier.height((4 * scale).coerceIn(2f, 8f).dp))
                 Text(
-                    "${state.primaryResetPrefix}: ${state.fiveHourResetLabel.removePrefix("Resets in ")}",
-                    style = TextStyle(
-                        color = GlanceTheme.colors.onSurfaceVariant,
-                        fontSize = (10 * scale).coerceIn(9f, 16f).sp,
-                    ),
-                    maxLines = 1,
-                )
-                Spacer(GlanceModifier.height((2 * scale).coerceIn(1f, 4f).dp))
-                Text(
-                    "${state.secondaryResetPrefix} reset: ${state.sevenDayResetLabel.removePrefix("Resets in ")}",
+                    "${state.secondaryResetPrefix} reset: ${state.sevenDayResetLabel}",
                     style = TextStyle(
                         color = GlanceTheme.colors.onSurfaceVariant,
                         fontSize = (10 * scale).coerceIn(9f, 16f).sp,

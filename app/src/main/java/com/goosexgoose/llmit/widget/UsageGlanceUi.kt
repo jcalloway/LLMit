@@ -43,6 +43,7 @@ data class WidgetState(
     val hasData: Boolean,
     val fiveHourPct: Int,
     val fiveHourResetLabel: String,
+    val showFiveHour: Boolean = true,
     val sevenDayPct: Int,
     val sevenDayResetLabel: String,
     val showFableWeekly: Boolean = false,
@@ -55,8 +56,8 @@ data class WidgetState(
     val showUsed: Boolean = false,
     val primaryLabel: String = "5H",
     val secondaryLabel: String = "1W",
-    val primaryResetPrefix: String = "5h reset",
-    val secondaryResetPrefix: String = "Weekly reset",
+    val primaryResetPrefix: String = "5H",
+    val secondaryResetPrefix: String = "1W",
 )
 
 private val COMPACT_MAX_WIDTH = 130.dp
@@ -190,8 +191,10 @@ private fun FullLayout(s: WidgetState) {
             }
             Spacer(GlanceModifier.height(gap))
         }
-        MeterRow(s.primaryLabel, s.fiveHourPct, s.fiveHourResetLabel, s.showUsed, barHeight, fontSize, smallFontSize)
-        Spacer(GlanceModifier.height(rowSpacing))
+        if (s.showFiveHour) {
+            MeterRow(s.primaryLabel, s.fiveHourPct, s.fiveHourResetLabel, s.showUsed, barHeight, fontSize, smallFontSize)
+            Spacer(GlanceModifier.height(rowSpacing))
+        }
         MeterRow(s.secondaryLabel, s.sevenDayPct, s.sevenDayResetLabel, s.showUsed, barHeight, fontSize, smallFontSize)
         if (s.showFableWeekly) {
             Spacer(GlanceModifier.height(rowSpacing))
@@ -265,8 +268,10 @@ private fun CompactLayout(s: WidgetState) {
     Column(modifier = GlanceModifier.fillMaxWidth()) {
         Lobster(lobsterSize)
         Spacer(GlanceModifier.height(spacing))
-        CompactMeter(s.primaryLabel, s.fiveHourPct, s.showUsed, sc)
-        Spacer(GlanceModifier.height(spacing))
+        if (s.showFiveHour) {
+            CompactMeter(s.primaryLabel, s.fiveHourPct, s.showUsed, sc)
+            Spacer(GlanceModifier.height(spacing))
+        }
         CompactMeter(s.secondaryLabel, s.sevenDayPct, s.showUsed, sc)
         if (s.showFableWeekly) {
             Spacer(GlanceModifier.height(spacing))

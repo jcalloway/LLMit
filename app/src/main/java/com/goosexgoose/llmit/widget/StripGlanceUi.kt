@@ -86,8 +86,10 @@ fun StripWidgetContent(state: WidgetState) {
                 }
                 Spacer(GlanceModifier.height((6 * scale).coerceIn(4f, 12f).dp))
                 Row(modifier = GlanceModifier.fillMaxWidth()) {
-                    StripCell(GlanceModifier.defaultWeight(), state.primaryLabel, state.fiveHourPct, state.fiveHourResetLabel, state.showUsed, cellScale)
-                    Spacer(GlanceModifier.width(gap))
+                    if (state.showFiveHour) {
+                        StripCell(GlanceModifier.defaultWeight(), state.primaryLabel, state.fiveHourPct, state.fiveHourResetLabel, state.showUsed, cellScale)
+                        Spacer(GlanceModifier.width(gap))
+                    }
                     StripCell(GlanceModifier.defaultWeight(), state.secondaryLabel, state.sevenDayPct, state.sevenDayResetLabel, state.showUsed, cellScale)
                     if (state.showFableWeekly) {
                         Spacer(GlanceModifier.width(gap))

@@ -5,7 +5,6 @@ import android.content.SharedPreferences
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceTheme
 import androidx.glance.appwidget.GlanceAppWidget
@@ -17,9 +16,13 @@ import com.goosexgoose.llmit.R
 import com.goosexgoose.llmit.data.AuthState
 import com.goosexgoose.llmit.data.Storage
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 class ServiceWidget : GlanceAppWidget() {
@@ -35,15 +38,16 @@ class ServiceWidget : GlanceAppWidget() {
         }
     }
 
-    private fun widgetStateFlow(context: Context, awId: Int): Flow<WidgetState> = callbackFlow {
+    private fun widgetStateFlow(context: Context, awId: Int): Flow<WidgetState> = callbackFlow<Unit> {
         val storage = Storage.get(context)
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
-            trySend(readState(context, awId))
+            trySend(Unit)
         }
         storage.registerSnapshotListener(listener)
-        trySend(readState(context, awId))
+        trySend(Unit)
+        launch { while (true) { delay(60_000L); trySend(Unit) } }
         awaitClose { storage.unregisterSnapshotListener(listener) }
-    }.conflate()
+    }.debounce(100).conflate().map { readState(context, awId) }
 
     internal fun readState(context: Context, awId: Int): WidgetState {
         val s = Storage.get(context)
@@ -104,6 +108,7 @@ class ServiceWidget : GlanceAppWidget() {
             hasData = snap.hasData,
             fiveHourPct = snap.fiveHourUtil.coerceAtLeast(0f).roundToInt(),
             fiveHourResetLabel = fiveHourLabel,
+            showFiveHour = snap.fiveHourUtil >= 0f,
             sevenDayPct = snap.sevenDayUtil.coerceAtLeast(0f).roundToInt(),
             sevenDayResetLabel = sevenDayLabel,
             showFableWeekly = showFable,
@@ -116,8 +121,8 @@ class ServiceWidget : GlanceAppWidget() {
             showUsed = s.showUsed,
             primaryLabel = if (serviceId == "cursor") "Auto" else "5H",
             secondaryLabel = if (serviceId == "cursor") "API" else "1W",
-            primaryResetPrefix = if (serviceId == "cursor") "Billing reset" else "5h reset",
-            secondaryResetPrefix = if (serviceId == "cursor") "Billing" else "Weekly",
+            primaryResetPrefix = if (serviceId == "cursor") "Billing" else "5H",
+            secondaryResetPrefix = if (serviceId == "cursor") "Billing" else "1W",
         )
     }
 }

@@ -432,7 +432,7 @@ private fun buildOtherServiceData(
         loggedIn = loggedIn,
         rows = rows,
         fetchedAt = snap.fetchedAt,
-        planTier = snap.planTier?.replaceFirstChar { it.uppercase() },
+        planTier = if (snap.planTier == "prolite") "Pro Lite" else snap.planTier?.replaceFirstChar { it.uppercase() },
         billingCycleEnd = snap.billingCycleEnd,
     )
 }
