@@ -16,3 +16,11 @@
 -dontwarn com.google.errorprone.annotations.CheckReturnValue
 -dontwarn com.google.errorprone.annotations.Immutable
 -dontwarn com.google.errorprone.annotations.RestrictedApi
+
+# Release builds drop debug/verbose/info logging: the fetch paths log raw API bodies
+# (account email, org ids). Warnings and errors stay.
+-assumenosideeffects class android.util.Log {
+    public static int d(...);
+    public static int v(...);
+    public static int i(...);
+}

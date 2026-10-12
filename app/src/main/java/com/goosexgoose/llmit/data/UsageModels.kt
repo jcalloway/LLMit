@@ -72,7 +72,11 @@ data class UsageSnapshot(
 
         private fun JSONObject.toOpenAiWindow(): Window {
             val pct = optDouble("used_percent", 0.0).toFloat()
-            val resetEpoch = optLong("reset_at", 0L) * 1000
+            // An unused window hasn't started: reset_at is always now + window and drifts on every
+            // poll. Report no reset time rather than a date that keeps moving.
+            val notStarted = pct <= 0f &&
+                optLong("reset_after_seconds", 0L) >= optLong("limit_window_seconds", Long.MAX_VALUE) - 60
+            val resetEpoch = if (notStarted) 0L else optLong("reset_at", 0L) * 1000
             return Window(utilization = pct, resetsAtEpochMs = resetEpoch)
         }
 

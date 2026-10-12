@@ -40,6 +40,8 @@ data class CombinedServiceState(
     val resetLabel: String,
     val fiveHourPct: Int = 0,
     val weeklyPct: Int = 0,
+    val hasFiveHour: Boolean = true,
+    val expired: Boolean = false,
     val primaryLabel: String = "5h",
     val secondaryLabel: String = "1w",
 )

@@ -3,15 +3,10 @@ package com.goosexgoose.llmit.data
 import android.content.Context
 
 object ProviderRegistry {
-    private val providers = mutableListOf<UsageProvider>()
+    // Immutable: init() used to mutate a plain list from several threads at cold start.
+    private val providers: List<UsageProvider> = listOf(ClaudeProvider, OpenAiProvider, CursorProvider)
 
-    fun register(provider: UsageProvider) {
-        if (providers.none { it.serviceId == provider.serviceId }) {
-            providers.add(provider)
-        }
-    }
-
-    fun all(): List<UsageProvider> = providers.toList()
+    fun all(): List<UsageProvider> = providers
 
     fun authenticated(context: Context): List<UsageProvider> =
         providers.filter { it.isAuthenticated(context) }
@@ -19,9 +14,5 @@ object ProviderRegistry {
     fun get(serviceId: String): UsageProvider? =
         providers.find { it.serviceId == serviceId }
 
-    fun init() {
-        register(ClaudeProvider)
-        register(OpenAiProvider)
-        register(CursorProvider)
-    }
+    fun init() {}
 }

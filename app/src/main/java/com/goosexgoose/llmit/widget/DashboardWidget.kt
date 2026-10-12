@@ -57,8 +57,8 @@ class DashboardWidget : GlanceAppWidget() {
         val serviceId = s.widgetServiceId(awId)
 
         val (label, needsLogin, snap) = when (serviceId) {
-            "openai" -> Triple("Codex", !s.isOpenaiLoggedIn, s.loadServiceSnapshot("openai"))
-            "cursor" -> Triple("Cursor", !s.isCursorLoggedIn, s.loadServiceSnapshot("cursor"))
+            "openai" -> Triple("Codex", !s.isOpenaiLoggedIn || s.serviceAuthState("openai") == AuthState.NEEDS_LOGIN, s.loadServiceSnapshot("openai"))
+            "cursor" -> Triple("Cursor", !s.isCursorLoggedIn || s.serviceAuthState("cursor") == AuthState.NEEDS_LOGIN, s.loadServiceSnapshot("cursor"))
             else -> Triple("Claude", !s.isLoggedIn || s.authState == AuthState.NEEDS_LOGIN,
                 Storage.ServiceSnapshotData(
                     fiveHourUtil = s.fiveHourUtil, fiveHourReset = s.fiveHourReset,

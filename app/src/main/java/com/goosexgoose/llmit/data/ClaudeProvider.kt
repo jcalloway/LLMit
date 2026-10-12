@@ -14,7 +14,7 @@ object ClaudeProvider : UsageProvider {
 
     override fun logout(context: Context) {
         val storage = Storage.get(context)
-        storage.clearCredentials()
+        storage.clearClaudeCredentials()
         storage.authState = AuthState.NEEDS_LOGIN
     }
 }

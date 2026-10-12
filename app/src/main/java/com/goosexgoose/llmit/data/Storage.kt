@@ -53,7 +53,7 @@ class Storage private constructor(
 
     var openaiRefreshToken: String?
         get() = secure.getString("openai_refresh_token", null)
-        set(v) = secure.edit().putString("openai_refresh_token", v).apply()
+        set(v) { secure.edit().putString("openai_refresh_token", v).commit() }
 
     var openaiAccountId: String?
         get() = secure.getString("openai_account_id", null)
@@ -76,7 +76,7 @@ class Storage private constructor(
 
     var cursorRefreshToken: String?
         get() = secure.getString("cursor_refresh_token", null)
-        set(v) = secure.edit().putString("cursor_refresh_token", v).apply()
+        set(v) { secure.edit().putString("cursor_refresh_token", v).commit() }
 
     var cursorUserId: String?
         get() = secure.getString("cursor_user_id", null)

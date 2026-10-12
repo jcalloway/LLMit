@@ -39,7 +39,9 @@ class RefreshWorker(context: Context, params: WorkerParameters) :
         if (anySuccess) RefreshScheduler.scheduleResetCheck(applicationContext)
 
         return when {
-            anySoft && runAttemptCount < MAX_RETRIES -> Result.retry()
+            // Retry only when nothing came through (offline): a retry re-fetches every provider, so
+            // one persistently blocked provider would otherwise quadruple each 15-minute cycle.
+            anySoft && !anySuccess && runAttemptCount < MAX_RETRIES -> Result.retry()
             else -> Result.success()
         }
     }

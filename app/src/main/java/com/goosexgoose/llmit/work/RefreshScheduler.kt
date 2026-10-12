@@ -77,10 +77,21 @@ object RefreshScheduler {
 
         val now = System.currentTimeMillis()
         val resetTimes = buildList {
-            if (storage.reset5hMode != ResetNotify.OFF) add(storage.fiveHourReset)
-            if (storage.resetWeeklyMode != ResetNotify.OFF) {
-                add(storage.sevenDayReset)
-                if (storage.fableWeeklyUtil >= 0f) add(storage.fableWeeklyReset)
+            if (storage.isLoggedIn) {
+                if (storage.reset5hMode != ResetNotify.OFF) add(storage.fiveHourReset)
+                if (storage.resetWeeklyMode != ResetNotify.OFF) {
+                    add(storage.sevenDayReset)
+                    if (storage.fableWeeklyUtil >= 0f) add(storage.fableWeeklyReset)
+                }
+            }
+            val others = listOfNotNull(
+                "openai".takeIf { storage.isOpenaiLoggedIn },
+                "cursor".takeIf { storage.isCursorLoggedIn },
+            )
+            for (id in others) {
+                val snap = storage.loadServiceSnapshot(id)
+                if (storage.reset5hMode != ResetNotify.OFF && snap.fiveHourUtil >= 0f) add(snap.fiveHourReset)
+                if (storage.resetWeeklyMode != ResetNotify.OFF && snap.sevenDayUtil >= 0f) add(snap.sevenDayReset)
             }
         }
         val next = resetTimes.filter { it > now }.minOrNull()

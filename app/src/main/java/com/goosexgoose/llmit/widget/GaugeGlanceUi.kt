@@ -84,6 +84,7 @@ private fun drawConcentricBitmap(
     outerFillPct: Int, outerColorPct: Int,
     innerLabel: String = "5h", outerLabel: String = "1w",
     sizePx: Int = 220,
+    drawInner: Boolean = true,
 ): Bitmap {
     val outerStroke = sizePx * 0.09f
     val innerStroke = sizePx * 0.09f
@@ -110,12 +111,12 @@ private fun drawConcentricBitmap(
     val innerInset = outerStroke + gap + innerStroke / 2f
     val innerOval = RectF(innerInset, innerInset, sizePx - innerInset, sizePx - innerInset)
     val innerColor = gaugeColorInt(innerColorPct)
-    canvas.drawArc(innerOval, ARC_START, ARC_SPAN, false, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    if (drawInner) canvas.drawArc(innerOval, ARC_START, ARC_SPAN, false, Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE; strokeWidth = innerStroke; strokeCap = Paint.Cap.ROUND
         color = (innerColor and 0x00FFFFFF) or (TRACK_ALPHA shl 24)
     })
     val innerClamped = innerFillPct.coerceIn(0, 100)
-    if (innerClamped > 0) {
+    if (drawInner && innerClamped > 0) {
         canvas.drawArc(innerOval, ARC_START, (innerClamped / 100f) * ARC_SPAN, false,
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 style = Paint.Style.STROKE; strokeWidth = innerStroke; strokeCap = Paint.Cap.ROUND
@@ -141,7 +142,7 @@ private fun drawConcentricBitmap(
     val fm = innerTextPaint.fontMetrics
     val textCenterOffset = -(fm.ascent + fm.descent) / 2f
     val gapEndY = 0.74f
-    canvas.drawText("$innerLabel $innerFillPct%", cx, cy + innerRadius * gapEndY + textCenterOffset, innerTextPaint)
+    if (drawInner) canvas.drawText("$innerLabel $innerFillPct%", cx, cy + innerRadius * gapEndY + textCenterOffset, innerTextPaint)
     canvas.drawText("$outerLabel $outerFillPct%", cx, cy + outerRadius * (gapEndY + 0.03f) + textCenterOffset, outerTextPaint)
 
     return bmp
@@ -248,8 +249,8 @@ private fun ConcentricGaugeCell(svc: CombinedServiceState, showUsed: Boolean, ce
     val iconRes = serviceIconRes(svc.serviceId)
     val logoSize = (cellSize.value * 0.25f).coerceIn(16f, 64f).dp
 
-    val bmp = remember(disp5, pct5, disp7, pct7, svc.primaryLabel, svc.secondaryLabel, sizePx) {
-        drawConcentricBitmap(disp5, pct5, disp7, pct7, svc.primaryLabel, svc.secondaryLabel, sizePx)
+    val bmp = remember(disp5, pct5, disp7, pct7, svc.primaryLabel, svc.secondaryLabel, sizePx, svc.hasFiveHour) {
+        drawConcentricBitmap(disp5, pct5, disp7, pct7, svc.primaryLabel, svc.secondaryLabel, sizePx, svc.hasFiveHour)
     }
     Box(
         modifier = GlanceModifier.size(cellSize),

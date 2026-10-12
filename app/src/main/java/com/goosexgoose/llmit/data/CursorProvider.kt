@@ -3,6 +3,8 @@ package com.goosexgoose.llmit.data
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaType
@@ -75,6 +77,7 @@ object CursorProvider : UsageProvider {
                                 storage.cursorRefreshToken = json.optString("refreshToken")
                                     .ifBlank { json.optString("refresh_token") }
                                     .ifBlank { null }
+                                storage.setServiceAuthState(serviceId, AuthState.OK)
                                 return@withContext true
                             }
                         }
@@ -85,41 +88,55 @@ object CursorProvider : UsageProvider {
             false
         }
 
-    private suspend fun refreshToken(context: Context): Boolean = withContext(Dispatchers.IO) {
-        val storage = Storage.get(context)
-        val rt = storage.cursorRefreshToken ?: return@withContext false
+    private fun refreshToken(storage: Storage): TokenRefresh {
+        val rt = storage.cursorRefreshToken ?: return TokenRefresh.REJECTED
         val body = FormBody.Builder()
             .add("grant_type", "refresh_token")
             .add("client_id", Const.CURSOR_CLIENT_ID)
             .add("refresh_token", rt)
             .build()
         val req = Request.Builder().url(Const.CURSOR_TOKEN_URL).post(body).build()
-        try {
+        return try {
             client.newCall(req).execute().use { resp ->
-                if (resp.code != 200) return@withContext false
-                val json = JSONObject(resp.body?.string().orEmpty())
-                storage.cursorAccessToken = json.optString("access_token")
-                    .ifBlank { json.optString("accessToken") }
-                json.optString("refresh_token").ifBlank { json.optString("refreshToken") }
-                    .takeIf { it.isNotBlank() }?.let { storage.cursorRefreshToken = it }
-                true
+                when (resp.code) {
+                    200 -> {
+                        val json = JSONObject(resp.body?.string().orEmpty())
+                        val access = json.optString("access_token").ifBlank { json.optString("accessToken") }
+                        if (access.isBlank()) return TokenRefresh.FAILED
+                        storage.cursorAccessToken = access
+                        json.optString("refresh_token").ifBlank { json.optString("refreshToken") }
+                            .takeIf { it.isNotBlank() }?.let { storage.cursorRefreshToken = it }
+                        TokenRefresh.OK
+                    }
+                    400, 401 -> TokenRefresh.REJECTED
+                    else -> TokenRefresh.FAILED
+                }
             }
         } catch (_: Exception) {
-            false
+            TokenRefresh.FAILED
         }
     }
+
+    private val refreshLock = Mutex()
 
     override suspend fun refresh(context: Context): FetchResult = withContext(Dispatchers.IO) {
         val storage = Storage.get(context)
         if (!isAuthenticated(context)) return@withContext FetchResult.NeedsLogin
 
-        var result = fetchUsage(storage)
-        if (result is FetchResult.NeedsLogin && refreshToken(context)) {
-            result = fetchUsage(Storage.get(context))
+        val result = refreshLock.withLock {
+            val first = fetchUsage(storage)
+            if (first !is FetchResult.NeedsLogin) first
+            else when (refreshToken(storage)) {
+                TokenRefresh.OK -> fetchUsage(storage)
+                TokenRefresh.REJECTED -> FetchResult.NeedsLogin
+                TokenRefresh.FAILED -> FetchResult.Soft("cursor-refresh-failed")
+            }
         }
 
-        storage.setServiceAuthState(serviceId,
-            if (result is FetchResult.NeedsLogin) AuthState.NEEDS_LOGIN else AuthState.OK)
+        if (result !is FetchResult.Soft) {
+            storage.setServiceAuthState(serviceId,
+                if (result is FetchResult.NeedsLogin) AuthState.NEEDS_LOGIN else AuthState.OK)
+        }
         if (result is FetchResult.Success) storage.saveServiceSnapshot(serviceId, result.snapshot)
         result
     }
@@ -139,7 +156,8 @@ object CursorProvider : UsageProvider {
                     resp.code == 200 -> FetchResult.Success(
                         UsageSnapshot.parseCursor(body, System.currentTimeMillis())
                     )
-                    resp.code == 401 || resp.code == 403 -> FetchResult.NeedsLogin
+                    resp.code == 401 -> FetchResult.NeedsLogin
+                    resp.code == 403 && !isHtml(resp.header("Content-Type")) -> FetchResult.NeedsLogin
                     else -> FetchResult.Soft("cursor-http-${resp.code}")
                 }
             }

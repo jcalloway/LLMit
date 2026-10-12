@@ -51,58 +51,7 @@ class GaugeWidget : GlanceAppWidget() {
 
     private fun readState(context: Context, awId: Int): CombinedWidgetState {
         val s = Storage.get(context)
-        val now = System.currentTimeMillis()
-        val windowMode = s.widgetWindowMode(awId)
-        val services = mutableListOf<CombinedServiceState>()
-        var latestFetch = 0L
-
-        if (s.isLoggedIn && s.hasSnapshot) {
-            latestFetch = maxOf(latestFetch, s.fetchedAt)
-            val pct5 = s.fiveHourUtil.coerceAtLeast(0f).roundToInt()
-            val pct7 = s.sevenDayUtil.coerceAtLeast(0f).roundToInt()
-            val (pct, reset) = pickWindow(windowMode, pct5, s.fiveHourReset, pct7, s.sevenDayReset)
-            services.add(CombinedServiceState("claude", "Claude", pct,
-                TimeFmt.resetsIn(reset, now), fiveHourPct = pct5, weeklyPct = pct7))
-        }
-
-        if (s.isOpenaiLoggedIn) {
-            val snap = s.loadServiceSnapshot("openai")
-            if (snap.hasData) {
-                latestFetch = maxOf(latestFetch, snap.fetchedAt)
-                val pct5 = snap.fiveHourUtil.coerceAtLeast(0f).roundToInt()
-                val pct7 = snap.sevenDayUtil.coerceAtLeast(0f).roundToInt()
-                val (pct, reset) = pickWindow(windowMode, pct5, snap.fiveHourReset, pct7, snap.sevenDayReset)
-                services.add(CombinedServiceState("openai", "Codex", pct,
-                    TimeFmt.resetsIn(reset, now), fiveHourPct = pct5, weeklyPct = pct7))
-            }
-        }
-
-        if (s.isCursorLoggedIn) {
-            val snap = s.loadServiceSnapshot("cursor")
-            if (snap.hasData) {
-                latestFetch = maxOf(latestFetch, snap.fetchedAt)
-                val pct5 = snap.fiveHourUtil.coerceAtLeast(0f).roundToInt()
-                val pct7 = snap.sevenDayUtil.coerceAtLeast(0f).roundToInt()
-                val (pct, reset) = pickWindow(windowMode, pct5, snap.fiveHourReset, pct7, snap.sevenDayReset)
-                services.add(CombinedServiceState("cursor", "Cursor", pct,
-                    if (reset > 0L) TimeFmt.resetsIn(reset, now) else "-",
-                    fiveHourPct = pct5, weeklyPct = pct7,
-                    primaryLabel = "Auto", secondaryLabel = "API"))
-            }
-        }
-
-        val anyLoggedIn = s.isLoggedIn || s.isOpenaiLoggedIn || s.isCursorLoggedIn
-
-        return CombinedWidgetState(
-            services = services,
-            bgOpacityPercent = s.widgetOpacityPercent(awId),
-            bgColorKey = s.widgetBgColorKey(awId),
-            showUsed = s.showUsed,
-            windowLabel = windowModeLabel(windowMode),
-            refreshing = s.refreshRequestedAt > 0L && now - s.refreshRequestedAt < 60_000L,
-            stale = services.isNotEmpty() && TimeFmt.isStale(latestFetch, now),
-            needsLogin = !anyLoggedIn,
-        )
+        return buildCombinedState(context, s, awId, s.widgetWindowMode(awId), absolute = false)
     }
 }
 

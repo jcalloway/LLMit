@@ -65,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 import com.goosexgoose.llmit.R
+import com.goosexgoose.llmit.data.AuthState
 import com.goosexgoose.llmit.data.ProviderRegistry
 import com.goosexgoose.llmit.data.Storage
 import com.goosexgoose.llmit.widget.TimeFmt
@@ -112,6 +113,7 @@ private data class ServiceDashData(
     val planTier: String? = null,
     val billingCycleEnd: Long = 0L,
     val resetCredits: Int = -1,
+    val expired: Boolean = false,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -136,7 +138,13 @@ fun DashboardScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME && !refreshing) {
+            // Skip when anything was fetched in the last minute: hopping to the home screen to
+            // look at the widget and back shouldn't re-hit all three APIs (and Claude's Cloudflare).
+            val newest = maxOf(storage.fetchedAt,
+                storage.loadServiceSnapshot("openai").fetchedAt,
+                storage.loadServiceSnapshot("cursor").fetchedAt)
+            val recent = System.currentTimeMillis() - newest < 60_000L
+            if (event == Lifecycle.Event.ON_RESUME && !refreshing && !recent) {
                 refreshing = true
                 scope.launch {
                     for (p in ProviderRegistry.authenticated(context)) p.refresh(context)
@@ -152,6 +160,7 @@ fun DashboardScreen(
     }
 
     val showUsed = remember(tick) { storage.showUsed }
+    val absolute = remember(tick) { storage.showAbsoluteResetTime }
     val services = remember(tick, refreshing) { buildServiceList(storage) }
 
     Scaffold(
@@ -219,7 +228,7 @@ fun DashboardScreen(
             val loggedInServices = services.filter { it.loggedIn }
 
             loggedInServices.forEach { svc ->
-                ServiceCard(svc, tick, showUsed, modifier = Modifier.weight(1f))
+                ServiceCard(svc, tick, showUsed, absolute, modifier = Modifier.weight(1f))
             }
 
             val latestFetch = services.maxOfOrNull { it.fetchedAt } ?: 0L
@@ -237,7 +246,7 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun ServiceCard(svc: ServiceDashData, tick: Long, showUsed: Boolean, modifier: Modifier = Modifier) {
+private fun ServiceCard(svc: ServiceDashData, tick: Long, showUsed: Boolean, absolute: Boolean, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -299,9 +308,18 @@ private fun ServiceCard(svc: ServiceDashData, tick: Long, showUsed: Boolean, mod
                 }
             }
 
+            if (svc.expired) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                Text(
+                    "Sign-in expired. Sign in again in Settings; numbers below are from the last update.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = BarRed,
+                )
+            }
+
             svc.rows.forEach { row ->
                 HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
-                UsageRowContent(row, tick, showUsed)
+                UsageRowContent(row, tick, showUsed, absolute)
             }
 
             if (svc.billingCycleEnd > 0L) {
@@ -326,7 +344,7 @@ private fun ServiceCard(svc: ServiceDashData, tick: Long, showUsed: Boolean, mod
 }
 
 @Composable
-private fun UsageRowContent(row: UsageRow, tick: Long, showUsed: Boolean) {
+private fun UsageRowContent(row: UsageRow, tick: Long, showUsed: Boolean, absolute: Boolean) {
     val pctLeft = (100 - row.pctUsed).coerceIn(0, 100)
     val isLow = pctLeft <= 15
     val barColor = if (isLow) BarRed else BarBlue
@@ -368,9 +386,14 @@ private fun UsageRowContent(row: UsageRow, tick: Long, showUsed: Boolean) {
 
     if (row.resetMs > 0L) {
         Spacer(Modifier.height(4.dp))
-        val resetText = TimeFmt.resetsIn(row.resetMs, tick)
+        val context = LocalContext.current
+        val resetText = when {
+            !absolute -> "Resets in ${TimeFmt.resetsIn(row.resetMs, tick)}"
+            row.resetMs - tick < 86_400_000L -> "Resets at ${TimeFmt.clockTime(context, row.resetMs)}"
+            else -> "Resets ${TimeFmt.dateAndTime(context, row.resetMs)}"
+        }
         Text(
-            "↻ Resets in $resetText",
+            "↻ $resetText",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -400,6 +423,7 @@ private fun buildClaudeData(storage: Storage, now: Long): ServiceDashData {
         label = "Claude Code",
         iconRes = R.drawable.ic_lobster_color,
         loggedIn = storage.isLoggedIn,
+        expired = storage.authState == AuthState.NEEDS_LOGIN,
         rows = rows,
         fetchedAt = storage.fetchedAt,
         planTier = storage.claudeTier,
@@ -440,6 +464,7 @@ private fun buildOtherServiceData(
         label = label,
         iconRes = iconRes,
         loggedIn = loggedIn,
+        expired = storage.serviceAuthState(serviceId) == AuthState.NEEDS_LOGIN,
         rows = rows,
         fetchedAt = snap.fetchedAt,
         planTier = if (snap.planTier == "prolite") "Pro Lite" else snap.planTier?.replaceFirstChar { it.uppercase() },

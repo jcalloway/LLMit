@@ -2,6 +2,8 @@ package com.goosexgoose.llmit.data
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
@@ -68,6 +70,8 @@ object OpenAiProvider : UsageProvider {
                     val storage = Storage.get(context)
                     storage.openaiAccessToken = json.optString("access_token")
                     storage.openaiRefreshToken = json.optString("refresh_token")
+                    accountIdFromIdToken(json.optString("id_token"))?.let { storage.openaiAccountId = it }
+                    storage.setServiceAuthState(serviceId, AuthState.OK)
                     true
                 }
             } catch (_: Exception) {
@@ -75,40 +79,69 @@ object OpenAiProvider : UsageProvider {
             }
         }
 
-    private suspend fun refreshToken(context: Context): Boolean = withContext(Dispatchers.IO) {
-        val storage = Storage.get(context)
-        val rt = storage.openaiRefreshToken ?: return@withContext false
+    /** chatgpt_account_id from the id_token JWT, so Team users get their workspace's limits. */
+    private fun accountIdFromIdToken(idToken: String): String? = try {
+        val payload = idToken.split(".").getOrNull(1) ?: return null
+        val claims = JSONObject(String(Base64.getUrlDecoder().decode(payload)))
+        claims.optJSONObject("https://api.openai.com/auth")
+            ?.optString("chatgpt_account_id")?.takeIf { it.isNotBlank() }
+    } catch (_: Exception) {
+        null
+    }
+
+    private fun refreshToken(storage: Storage): TokenRefresh {
+        val rt = storage.openaiRefreshToken ?: return TokenRefresh.REJECTED
         val body = FormBody.Builder()
             .add("grant_type", "refresh_token")
             .add("client_id", Const.OPENAI_CLIENT_ID)
             .add("refresh_token", rt)
             .build()
         val req = Request.Builder().url(Const.OPENAI_TOKEN_URL).post(body).build()
-        try {
+        return try {
             client.newCall(req).execute().use { resp ->
-                if (resp.code != 200) return@withContext false
-                val json = JSONObject(resp.body?.string().orEmpty())
-                storage.openaiAccessToken = json.optString("access_token")
-                json.optString("refresh_token").takeIf { it.isNotBlank() }
-                    ?.let { storage.openaiRefreshToken = it }
-                true
+                when (resp.code) {
+                    200 -> {
+                        val json = JSONObject(resp.body?.string().orEmpty())
+                        val access = json.optString("access_token")
+                        // A blank token would read as "not signed in" and silently drop Codex.
+                        if (access.isBlank()) return TokenRefresh.FAILED
+                        storage.openaiAccessToken = access
+                        json.optString("refresh_token").takeIf { it.isNotBlank() }
+                            ?.let { storage.openaiRefreshToken = it }
+                        accountIdFromIdToken(json.optString("id_token"))?.let { storage.openaiAccountId = it }
+                        TokenRefresh.OK
+                    }
+                    400, 401 -> TokenRefresh.REJECTED
+                    else -> TokenRefresh.FAILED
+                }
             }
         } catch (_: Exception) {
-            false
+            TokenRefresh.FAILED
         }
     }
+
+    // One refresh at a time: OpenAI rotates refresh tokens, so two concurrent exchanges can
+    // burn the token and log the user out. A waiter re-fetches with the already-refreshed token.
+    private val refreshLock = Mutex()
 
     override suspend fun refresh(context: Context): FetchResult = withContext(Dispatchers.IO) {
         val storage = Storage.get(context)
         if (!isAuthenticated(context)) return@withContext FetchResult.NeedsLogin
 
-        var result = fetchUsage(storage)
-        if (result is FetchResult.NeedsLogin && refreshToken(context)) {
-            result = fetchUsage(Storage.get(context))
+        val result = refreshLock.withLock {
+            val first = fetchUsage(storage)
+            if (first !is FetchResult.NeedsLogin) first
+            else when (refreshToken(storage)) {
+                TokenRefresh.OK -> fetchUsage(storage)
+                TokenRefresh.REJECTED -> FetchResult.NeedsLogin
+                TokenRefresh.FAILED -> FetchResult.Soft("openai-refresh-failed")
+            }
         }
 
-        storage.setServiceAuthState(serviceId,
-            if (result is FetchResult.NeedsLogin) AuthState.NEEDS_LOGIN else AuthState.OK)
+        if (result !is FetchResult.Soft) {
+            storage.setServiceAuthState(serviceId,
+                if (result is FetchResult.NeedsLogin) AuthState.NEEDS_LOGIN else AuthState.OK)
+        }
         if (result is FetchResult.Success) storage.saveServiceSnapshot(serviceId, result.snapshot)
         result
     }
@@ -129,7 +162,8 @@ object OpenAiProvider : UsageProvider {
                     resp.code == 200 -> FetchResult.Success(
                         UsageSnapshot.parseOpenAi(body, System.currentTimeMillis())
                     )
-                    resp.code == 401 || resp.code == 403 -> FetchResult.NeedsLogin
+                    resp.code == 401 -> FetchResult.NeedsLogin
+                    resp.code == 403 && !isHtml(resp.header("Content-Type")) -> FetchResult.NeedsLogin
                     else -> FetchResult.Soft("openai-http-${resp.code}")
                 }
             }

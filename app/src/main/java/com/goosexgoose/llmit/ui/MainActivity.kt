@@ -88,6 +88,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import com.goosexgoose.llmit.R
 import com.goosexgoose.llmit.auth.LoginActivity
+import com.goosexgoose.llmit.data.AuthState
 import com.goosexgoose.llmit.data.CursorProvider
 import com.goosexgoose.llmit.data.OpenAiProvider
 import com.goosexgoose.llmit.data.ProviderRegistry
@@ -277,7 +278,9 @@ private fun SettingsScreen(onBack: () -> Unit, onThemeChanged: (ThemeMode) -> Un
                         modifier = Modifier.padding(horizontal = 16.dp),
                         color = MaterialTheme.colorScheme.outlineVariant,
                     )
-                    val openaiLoggedIn = remember(refreshKey) { storage.isOpenaiLoggedIn }
+                    val openaiLoggedIn = remember(refreshKey) {
+                        storage.isOpenaiLoggedIn && storage.serviceAuthState("openai") != AuthState.NEEDS_LOGIN
+                    }
                     AccountRow(
                         iconRes = R.drawable.ic_openai_color,
                         name = "Codex",
@@ -294,7 +297,9 @@ private fun SettingsScreen(onBack: () -> Unit, onThemeChanged: (ThemeMode) -> Un
                         modifier = Modifier.padding(horizontal = 16.dp),
                         color = MaterialTheme.colorScheme.outlineVariant,
                     )
-                    val cursorLoggedIn = remember(refreshKey) { storage.isCursorLoggedIn }
+                    val cursorLoggedIn = remember(refreshKey) {
+                        storage.isCursorLoggedIn && storage.serviceAuthState("cursor") != AuthState.NEEDS_LOGIN
+                    }
                     AccountRow(
                         iconRes = R.drawable.ic_cursor_color,
                         name = "Cursor",

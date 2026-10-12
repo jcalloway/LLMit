@@ -11,6 +11,7 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.GlanceAppWidgetManager
+import com.goosexgoose.llmit.data.AuthState
 import com.goosexgoose.llmit.data.Storage
 import com.goosexgoose.llmit.data.WidgetWindowMode
 import kotlinx.coroutines.channels.awaitClose
@@ -49,65 +50,80 @@ class CombinedWidget : GlanceAppWidget() {
 
     private fun readState(context: Context, awId: Int): CombinedWidgetState {
         val s = Storage.get(context)
-        val now = System.currentTimeMillis()
         val windowMode = s.widgetWindowMode(awId)
-        val absolute = s.showAbsoluteResetTime
-        val services = mutableListOf<CombinedServiceState>()
-        var latestFetch = 0L
-
-        if (s.isLoggedIn && s.hasSnapshot) {
-            latestFetch = maxOf(latestFetch, s.fetchedAt)
-            val pct5 = s.fiveHourUtil.coerceAtLeast(0f).roundToInt()
-            val pct7 = s.sevenDayUtil.coerceAtLeast(0f).roundToInt()
-            val (pct, reset) = pickWindow(windowMode, pct5, s.fiveHourReset, pct7, s.sevenDayReset)
-            val isShort = windowMode == WidgetWindowMode.FIVE_HOUR ||
-                (windowMode == WidgetWindowMode.WORST && pct5 >= pct7)
-            services.add(CombinedServiceState("claude", "Claude", pct,
-                formatReset(context, reset, now, absolute, isShort)))
-        }
-
-        if (s.isOpenaiLoggedIn) {
-            val snap = s.loadServiceSnapshot("openai")
-            if (snap.hasData) {
-                latestFetch = maxOf(latestFetch, snap.fetchedAt)
-                val pct5 = snap.fiveHourUtil.coerceAtLeast(0f).roundToInt()
-                val pct7 = snap.sevenDayUtil.coerceAtLeast(0f).roundToInt()
-                val (pct, reset) = pickWindow(windowMode, pct5, snap.fiveHourReset, pct7, snap.sevenDayReset)
-                val isShort = windowMode == WidgetWindowMode.FIVE_HOUR ||
-                    (windowMode == WidgetWindowMode.WORST && pct5 >= pct7)
-                services.add(CombinedServiceState("openai", "Codex", pct,
-                    formatReset(context, reset, now, absolute, isShort)))
-            }
-        }
-
-        if (s.isCursorLoggedIn) {
-            val snap = s.loadServiceSnapshot("cursor")
-            if (snap.hasData) {
-                latestFetch = maxOf(latestFetch, snap.fetchedAt)
-                val pct5 = snap.fiveHourUtil.coerceAtLeast(0f).roundToInt()
-                val pct7 = snap.sevenDayUtil.coerceAtLeast(0f).roundToInt()
-                val (pct, reset) = pickWindow(windowMode, pct5, snap.fiveHourReset, pct7, snap.sevenDayReset)
-                val isShort = windowMode == WidgetWindowMode.FIVE_HOUR ||
-                    (windowMode == WidgetWindowMode.WORST && pct5 >= pct7)
-                services.add(CombinedServiceState("cursor", "Cursor", pct,
-                    formatReset(context, reset, now, absolute, isShort),
-                    primaryLabel = "Auto", secondaryLabel = "API"))
-            }
-        }
-
-        val anyLoggedIn = s.isLoggedIn || s.isOpenaiLoggedIn || s.isCursorLoggedIn
-
-        return CombinedWidgetState(
-            services = services,
-            bgOpacityPercent = s.widgetOpacityPercent(awId),
-            bgColorKey = s.widgetBgColorKey(awId),
-            showUsed = s.showUsed,
-            windowLabel = windowModeLabel(windowMode),
-            refreshing = s.refreshRequestedAt > 0L && now - s.refreshRequestedAt < 60_000L,
-            stale = services.isNotEmpty() && TimeFmt.isStale(latestFetch, now),
-            needsLogin = !anyLoggedIn,
-        )
+        return buildCombinedState(context, s, awId, windowMode, s.showAbsoluteResetTime)
     }
+}
+
+/**
+ * Shared by Bars and Gauge. Per service: a window the plan doesn't have (-1, e.g. Codex Pro Lite's
+ * missing 5H) is never picked; an expired sign-in shows "Sign in" instead of frozen numbers; and
+ * staleness is judged per service, so one fresh fetch can't hide another service's stale data.
+ */
+internal fun buildCombinedState(
+    context: Context, s: Storage, awId: Int, windowMode: WidgetWindowMode, absolute: Boolean,
+): CombinedWidgetState {
+    val now = System.currentTimeMillis()
+    val services = mutableListOf<CombinedServiceState>()
+    var anyStale = false
+
+    fun add(id: String, name: String, snap: Storage.ServiceSnapshotData, expired: Boolean,
+            primary: String = "5h", secondary: String = "1w") {
+        val has5 = snap.fiveHourUtil >= 0f
+        val has7 = snap.sevenDayUtil >= 0f
+        val pct5 = snap.fiveHourUtil.coerceAtLeast(0f).roundToInt()
+        val pct7 = snap.sevenDayUtil.coerceAtLeast(0f).roundToInt()
+        val useShort = when {
+            !has7 -> true
+            !has5 -> false
+            else -> windowMode == WidgetWindowMode.FIVE_HOUR ||
+                (windowMode == WidgetWindowMode.WORST && pct5 >= pct7)
+        }
+        val pct = if (useShort) pct5 else pct7
+        val reset = if (useShort) snap.fiveHourReset else snap.sevenDayReset
+        anyStale = anyStale || expired || TimeFmt.isStale(snap.fetchedAt, now)
+        services.add(CombinedServiceState(id, name, pct,
+            if (expired) "Sign in" else formatReset(context, reset, now, absolute, useShort),
+            fiveHourPct = pct5, weeklyPct = pct7, hasFiveHour = has5, expired = expired,
+            primaryLabel = primary, secondaryLabel = secondary))
+    }
+
+    // Each of these decrypts EncryptedSharedPreferences; read once per render, not twice.
+    val claudeIn = s.isLoggedIn
+    val openaiIn = s.isOpenaiLoggedIn
+    val cursorIn = s.isCursorLoggedIn
+
+    if (claudeIn && s.hasSnapshot) {
+        add("claude", "Claude", Storage.ServiceSnapshotData(
+            fiveHourUtil = s.fiveHourUtil, fiveHourReset = s.fiveHourReset,
+            sevenDayUtil = s.sevenDayUtil, sevenDayReset = s.sevenDayReset,
+            fableWeeklyUtil = s.fableWeeklyUtil, fableWeeklyReset = s.fableWeeklyReset,
+            fetchedAt = s.fetchedAt,
+        ), s.authState == AuthState.NEEDS_LOGIN)
+    }
+    if (openaiIn) {
+        val snap = s.loadServiceSnapshot("openai")
+        if (snap.hasData) add("openai", "Codex", snap, s.serviceAuthState("openai") == AuthState.NEEDS_LOGIN)
+    }
+    if (cursorIn) {
+        val snap = s.loadServiceSnapshot("cursor")
+        if (snap.hasData) add("cursor", "Cursor", snap, s.serviceAuthState("cursor") == AuthState.NEEDS_LOGIN,
+            primary = "Auto", secondary = "API")
+    }
+
+    val anyLoggedIn = claudeIn || openaiIn || cursorIn
+    val allExpired = services.isNotEmpty() && services.all { it.expired }
+
+    return CombinedWidgetState(
+        services = services,
+        bgOpacityPercent = s.widgetOpacityPercent(awId),
+        bgColorKey = s.widgetBgColorKey(awId),
+        showUsed = s.showUsed,
+        windowLabel = windowModeLabel(windowMode),
+        refreshing = s.refreshRequestedAt > 0L && now - s.refreshRequestedAt < 60_000L,
+        stale = anyStale,
+        needsLogin = !anyLoggedIn || allExpired,
+    )
 }
 
 internal fun windowModeLabel(mode: WidgetWindowMode): String = when (mode) {

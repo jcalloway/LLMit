@@ -31,6 +31,7 @@ object UsageNotifier {
     private const val RESET_JUMP_MS = 2 * 60 * 60 * 1000L
 
     private const val WEEKLY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000L
+    private const val EARLY_MARGIN_MS = 60 * 60 * 1000L
 
     private const val ID_5H = 1001
     private const val ID_7D = 1002
@@ -90,18 +91,37 @@ object UsageNotifier {
             }
         }
 
+        // Before checkReset, which advances the tracker this compares against. An early refill
+        // gets its own notification, so the plain "limit reset" one is suppressed for it.
+        val early7d = storage.unexpectedResetsEnabled &&
+            checkUnexpectedReset(context, storage, "${prefix}7d", id7d + 10000, weeklyLabel(serviceId), snapshot.sevenDay, serviceId)
+        val earlyFable = storage.unexpectedResetsEnabled && snapshot.fableWeekly?.let {
+            checkUnexpectedReset(context, storage, "${prefix}fable", idFable + 10000, fableLabel(), it, serviceId)
+        } == true
+
         checkReset(context, storage, "${prefix}5h", storage.reset5hMode, rid5h, reset5hTitleRes(serviceId), resetBody5hRes(serviceId), snapshot.fiveHour, serviceId)
-        checkReset(context, storage, "${prefix}7d", storage.resetWeeklyMode, rid7d, reset7dTitleRes(serviceId), resetBody7dRes(serviceId), snapshot.sevenDay, serviceId)
+        checkReset(context, storage, "${prefix}7d", storage.resetWeeklyMode, rid7d, reset7dTitleRes(serviceId), resetBody7dRes(serviceId), snapshot.sevenDay, serviceId, suppressPost = early7d)
         snapshot.fableWeekly?.let {
-            checkReset(context, storage, "${prefix}fable", storage.resetWeeklyMode, ridFable, resetFableTitleRes(), R.string.reset_body_claude_fable, it, serviceId)
+            checkReset(context, storage, "${prefix}fable", storage.resetWeeklyMode, ridFable, resetFableTitleRes(), R.string.reset_body_claude_fable, it, serviceId, suppressPost = earlyFable)
         }
 
         if (storage.weeklyWarningsEnabled) {
-            checkWeeklyDepletion(context, storage, "${prefix}7d", id7d + 5000, weeklyLabel(serviceId), snapshot.sevenDay, serviceId)
+            // +20000: +5000 collided with Cursor's reset IDs (1002+5000 = 6002).
+            checkWeeklyDepletion(context, storage, "${prefix}7d", id7d + 20000, weeklyLabel(serviceId), snapshot.sevenDay, serviceId)
             snapshot.fableWeekly?.let {
-                checkWeeklyDepletion(context, storage, "${prefix}fable", idFable + 5000, fableLabel(), it, serviceId)
+                checkWeeklyDepletion(context, storage, "${prefix}fable", idFable + 20000, fableLabel(), it, serviceId)
             }
         }
+    }
+
+    /**
+     * The tracked cycle ended: either resets_at jumped past poll jitter, or the window went idle
+     * (Codex reports no reset time at 0% until first use). Needs real usage in the old cycle.
+     */
+    private fun isNewCycle(prevSeen: Long, prevPct: Int, window: Window): Boolean {
+        if (prevSeen <= 0L || prevPct <= 0) return false
+        val cur = window.resetsAtEpochMs
+        return if (cur > 0L) cur - prevSeen > RESET_JUMP_MS else window.utilization == 0f
     }
 
     private fun checkReset(
@@ -114,20 +134,24 @@ object UsageNotifier {
         bodyRes: Int,
         window: Window,
         serviceId: String = "claude",
+        suppressPost: Boolean = false,
     ) {
         val prevSeen = storage.resetTrackSeen(key)
         val prevPct = storage.resetTrackPrevPct(key)
         val curReset = window.resetsAtEpochMs
         // Round (not truncate) so a "capped" window reporting e.g. 99.7 still counts as 100.
         val curPct = window.utilization.roundToInt()
+        // Window missing (-1), or usage with no reset time: unknown, keep the last real cycle.
+        if (window.utilization < 0f || (curReset <= 0L && curPct > 0)) return
+
+        val didReset = isNewCycle(prevSeen, prevPct, window)
 
         // Advance the tracker unconditionally (independent of mode/permission) so it always
         // reflects the latest cycle. Otherwise, enabling the feature later could compare against
-        // a stale value and fire a spurious catch-up notification.
-        storage.updateResetTrack(key, curReset, curPct)
+        // a stale value and fire a spurious catch-up notification. Idle windows record (0, 0).
+        storage.updateResetTrack(key, curReset.coerceAtLeast(0L), curPct)
 
-        val didReset = prevSeen != 0L && curReset - prevSeen > RESET_JUMP_MS
-        if (!didReset) return
+        if (!didReset || suppressPost) return
 
         val shouldNotify = when (mode) {
             ResetNotify.OFF -> false
@@ -151,6 +175,8 @@ object UsageNotifier {
     ) {
         val pct = window.utilization.toInt()
         if (pct < storage.nearLimitThreshold) return
+        // Dedupe is keyed on the reset time; without one every poll would re-alert.
+        if (window.resetsAtEpochMs <= 0L) return
         if (storage.wasNotifiedFor(key, window.resetsAtEpochMs)) return
 
         val posted = post(context, CHANNEL_ID, notificationId,
@@ -166,18 +192,21 @@ object UsageNotifier {
         label: String,
         window: Window,
         serviceId: String = "claude",
-    ) {
+    ): Boolean {
         val prevSeen = storage.resetTrackSeen(key)
-        val curReset = window.resetsAtEpochMs
-        if (prevSeen == 0L) return
-        val jump = curReset - prevSeen
-        if (jump <= 0 || jump > RESET_JUMP_MS) return
-        // resets_at moved forward but by less than 2h. That's an early refill, not a scheduled reset.
-        if (storage.wasNotifiedFor("unexpected_$key", curReset)) return
+        val prevPct = storage.resetTrackPrevPct(key)
+        if (window.utilization < 0f) return false
+        // A new cycle while the old one still had over an hour to run, and usage dropped.
+        if (!isNewCycle(prevSeen, prevPct, window)) return false
+        if (prevSeen - System.currentTimeMillis() < EARLY_MARGIN_MS) return false
+        if (window.utilization.roundToInt() >= prevPct) return false
+        val dedupe = window.resetsAtEpochMs.takeIf { it > 0L } ?: prevSeen
+        if (storage.wasNotifiedFor("unexpected_$key", dedupe)) return true
         val posted = post(context, RESET_CHANNEL_ID, notificationId,
             "$label refilled early",
             "Your weekly limit was refilled before the scheduled reset.", serviceId)
-        if (posted) storage.markNotified("unexpected_$key", curReset)
+        if (posted) storage.markNotified("unexpected_$key", dedupe)
+        return true
     }
 
     private fun checkWeeklyDepletion(
@@ -189,6 +218,7 @@ object UsageNotifier {
         window: Window,
         serviceId: String = "claude",
     ) {
+        if (window.utilization < 0f) return
         val pctUsed = window.utilization.toInt()
         val pctLeft = 100 - pctUsed
         if (pctLeft > storage.weeklyWarningRemaining) return

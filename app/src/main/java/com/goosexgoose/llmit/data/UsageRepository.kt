@@ -17,6 +17,12 @@ sealed interface FetchResult {
     data class Soft(val reason: String) : FetchResult
 }
 
+/** Outcome of an OAuth refresh-token exchange: only REJECTED means the user must sign in again. */
+enum class TokenRefresh { OK, REJECTED, FAILED }
+
+/** A 403 served as HTML is a Cloudflare challenge page, not an auth rejection. */
+internal fun isHtml(contentType: String?): Boolean = contentType?.contains("text/html", ignoreCase = true) == true
+
 class UsageRepository(private val context: Context) {
 
     private val storage = Storage.get(context)
