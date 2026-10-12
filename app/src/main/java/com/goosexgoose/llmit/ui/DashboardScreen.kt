@@ -111,6 +111,7 @@ private data class ServiceDashData(
     val fetchedAt: Long,
     val planTier: String? = null,
     val billingCycleEnd: Long = 0L,
+    val resetCredits: Int = -1,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -311,6 +312,15 @@ private fun ServiceCard(svc: ServiceDashData, tick: Long, showUsed: Boolean, mod
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+
+            if (svc.resetCredits >= 0) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+                Text(
+                    if (svc.resetCredits == 1) "1 reset credit available" else "${svc.resetCredits} reset credits available",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -434,6 +444,7 @@ private fun buildOtherServiceData(
         fetchedAt = snap.fetchedAt,
         planTier = if (snap.planTier == "prolite") "Pro Lite" else snap.planTier?.replaceFirstChar { it.uppercase() },
         billingCycleEnd = snap.billingCycleEnd,
+        resetCredits = snap.resetCredits,
     )
 }
 

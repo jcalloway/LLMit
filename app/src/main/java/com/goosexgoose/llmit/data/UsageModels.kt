@@ -14,6 +14,7 @@ data class UsageSnapshot(
     val fetchedAtEpochMs: Long,
     val planTier: String? = null,
     val billingCycleEndMs: Long = 0L,
+    val resetCredits: Int = -1,
 ) {
     companion object {
         fun parse(body: String, now: Long): UsageSnapshot {
@@ -65,6 +66,7 @@ data class UsageSnapshot(
                 fableWeekly = null,
                 fetchedAtEpochMs = now,
                 planTier = tier,
+                resetCredits = root.optJSONObject("rate_limit_reset_credits")?.optInt("available_count", -1) ?: -1,
             )
         }
 

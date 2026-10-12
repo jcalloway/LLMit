@@ -365,6 +365,7 @@ class Storage private constructor(
             .putLong("${serviceId}_fetched_at", s.fetchedAtEpochMs)
             .putString("${serviceId}_tier", s.planTier)
             .putLong("${serviceId}_billing_cycle_end", s.billingCycleEndMs)
+            .putInt("${serviceId}_reset_credits", s.resetCredits)
             .apply()
     }
 
@@ -379,6 +380,7 @@ class Storage private constructor(
             fetchedAt = snapshot.getLong("${serviceId}_fetched_at", 0L),
             planTier = snapshot.getString("${serviceId}_tier", null),
             billingCycleEnd = snapshot.getLong("${serviceId}_billing_cycle_end", 0L),
+            resetCredits = snapshot.getInt("${serviceId}_reset_credits", -1),
         )
     }
 
@@ -392,6 +394,7 @@ class Storage private constructor(
         val fetchedAt: Long,
         val planTier: String? = null,
         val billingCycleEnd: Long = 0L,
+        val resetCredits: Int = -1,
     ) {
         val hasData: Boolean get() = fiveHourUtil >= 0f || sevenDayUtil >= 0f
     }
